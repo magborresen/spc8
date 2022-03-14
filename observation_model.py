@@ -1,19 +1,20 @@
 import numpy as np
-
-
+import matplotlib.pyplot as plt
 
 class Observation():
 
-    def __init__(self, mtransmitters, nreceivers):
-        self.m_transmitters = mtransmitters
-        self.n_receivers = nreceivers
-        self._c = 300000
+    def __init__(self, m_transmitters, n_receivers):
+        self.m_transmitters = m_transmitters
+        self.n_receivers = n_receivers
         self.tx_pos = None
         self.rx_pos = None
+        self._array_radius = 2e3
+        self.place_antennas()
+        self._c = 300000
         self.alpha = 1
         self._fc = 40e6
 
-    def place_antennas(self):
+    def place_antennas(self) -> None:
         """ Place collacted RX and TX antennas in 2D space
 
             Args:
@@ -22,32 +23,48 @@ class Observation():
             Returns:
                 no value
         """
-        self.tx_pos = [np.cos(np.linspace(0, 2*np.pi, self.m_transmitters)),
-                       np.sin(np.linspace(0, 2*np.pi, self.m_transmitters))]
+        self.tx_pos = [self._array_radius*np.cos(np.linspace(0, 2*np.pi, self.m_transmitters)),
+                       self._array_radius*np.sin(np.linspace(0, 2*np.pi, self.m_transmitters))]
 
-        self.rx_pos = [np.cos(np.linspace(0, 2*np.pi, self.n_receivers)),
-                       np.sin(np.linspace(0, 2*np.pi, self.n_receivers))]
+        self.rx_pos = [self._array_radius*np.cos(np.linspace(0, 2*np.pi, self.n_receivers)),
+                       self._array_radius*np.sin(np.linspace(0, 2*np.pi, self.n_receivers))]
 
-    def time_delay(self, x_tm: float, y_tm: float, x_rn: float, y_rn: float, x_k: float, y_k: float):
-        """ Find time delay from transmitter to target to receiver
+    def plot_antennas(self) -> None:
+        """ Plot antenna postions in 2D space
 
             Args:
-                x_tm (float): x position of m'th transmitter
-                y_tm (float): y position of m'th transmitter
-                x_rn (float): x position of n'th receiver
-                y_rn (float): y position of n'th receiver
+                no value
+
+            Returns:
+                no value
+        """
+        plt.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
+        plt.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
+        plt.legend()
+        plt.title("RX/TX positions in the plane")
+        plt.xlabel("Position [m]")
+        plt.ylabel("Position [m]")
+        plt.show()
+
+    def time_delay(self, rx_n: int, x_k: float, y_k: float) -> list:
+        """ Find time delay from receiver n to the target to all m transmitters
+
+            Args:
+                rx_n (int): Receiver to calculate delays for
                 x_k (float): x position of the target
                 y_k (float): y position of the target
 
             Returns:
                 tau (float): Signal time delay
         """
-        tau = 1 / self._c * (np.sqrt(x_tm - x_k**2 + (y_tm - y_k)**2) +
-                                  np.sqrt(x_rn - x_k)**2 + (y_rn - y_k)**2)
+        tau = 1 / self._c * (np.sqrt((self.tx_pos[0] - x_k)**2 +
+                            (self.tx_pos[1] - y_k)**2) +
+                             np.sqrt((self.rx_pos[0][rx_n] - x_k)**2 +
+                            (self.rx_pos[1][rx_n]- y_k)**2))
 
         return tau
 
-    def tx_signal(self, t, tau):
+    def tx_signal(self, t, tau) -> float:
         """ Create the tx radar signal
 
             Args:
@@ -55,13 +72,35 @@ class Observation():
                 tau (float): time delay
 
             Returns:
-                sx_m (float): Transmitted signal amplitude at t
-        
+                sx_m (float): Transmitted signal amplitude at time t
         """
+
         sx_m = np.cos(2*np.pi*self._fc*(t-tau))
 
         return sx_m
 
-    def observation(self, n, m, t):
-        return
+    def observations(self, target_pos: list, t: float) -> list:
+        """ Calculate observed signal from target position
 
+            Args:
+                target_pos (list): Target x and y position in that order
+                t (float): time
+
+            Returns:
+                rk (list): Observed signals from receiver 0 to n
+
+        """
+        r_k = []
+        for rx_n in range(self.n_receivers):
+            tau = self.time_delay(rx_n, target_pos[0], target_pos[1])
+            sx_m = self.tx_signal(t, tau)
+            rk_n = sum([self.alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau)])
+            r_k.append(rk_n)
+
+        return r_k
+
+
+
+if __name__ == '__main__':
+    obs = Observation(10, 10)
+    print(obs.time_delay(3, 23.8, 1324.5))
