@@ -18,6 +18,7 @@ class Signal(Observation, System):
         self.k_tot = k_tot
         self.region = region
         self.time_step = time_step
+        self.num_samples = int(self.k_tot / self.time_step)
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
         Observation.__init__(self, self.m_transmitters, self.n_receivers, self.region)
@@ -55,13 +56,13 @@ class Signal(Observation, System):
             Returns:
                 r_k (list): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(0, self.k_tot, self.time_step)
+        time = np.linspace(0, self.k_tot, self.num_samples)
         r_k = [self.observation(self.states[i], time[i]) for i in range(len(self.states))]
 
         return r_k
 
 
 if __name__ == '__main__':
-    sig = Signal(1, [2000, 2000], 1, 10, 10)
+    sig = Signal(10000, [2000, 2000], 4e-4, 10, 10)
     obs = sig.observe()
-    print(obs)
+    
