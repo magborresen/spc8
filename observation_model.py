@@ -1,3 +1,6 @@
+"""
+    This module creates an observation model for the general signal model to use.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,12 +9,13 @@ class Observation():
         Class to represent an oberservation    
     """
 
-    def __init__(self, m_transmitters, n_receivers, radius=2000):
+    def __init__(self, m_transmitters: int, n_receivers: int, region: list):
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
+        self.region = region
         self.tx_pos = None
         self.rx_pos = None
-        self._array_radius = radius
+        self._array_radius = np.sqrt(2) * self.region[0]
         self.place_antennas()
         self._c = 300000
         self.alpha = 1
@@ -101,6 +105,3 @@ class Observation():
             r_k.append(rk_n)
 
         return r_k
-
-if __name__ == '__main__':
-    obs = Observation(10, 10)
