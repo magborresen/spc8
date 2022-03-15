@@ -65,4 +65,3 @@ class Signal(Observation, System):
 if __name__ == '__main__':
     sig = Signal(10000, [2000, 2000], 4e-4, 10, 10)
     obs = sig.observe()
-    
