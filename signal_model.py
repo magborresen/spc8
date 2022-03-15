@@ -2,6 +2,7 @@
     This module creates a signal model for the estimator to use.
 """
 import matplotlib.pyplot as plt
+import numpy as np
 from observation_model import Observation
 from system_model import System
 
@@ -44,7 +45,23 @@ class Signal(Observation, System):
         plt.legend()
         plt.show()
 
+    def observe(self):
+        """
+            Creates observations for all receivers for all states at all times
+
+            Args:
+                no value
+
+            Returns:
+                r_k (list): Nested lists of receiver amplitudes for each state
+        """
+        time = np.linspace(0, self.k_tot, self.time_step)
+        r_k = [self.observation(self.states[i], time[i]) for i in range(len(self.states))]
+
+        return r_k
+
 
 if __name__ == '__main__':
-    sig = Signal(75, [2000, 2000], 1, 10, 10)
-    sig.plot_region()
+    sig = Signal(1, [2000, 2000], 1, 10, 10)
+    obs = sig.observe()
+    print(obs)
