@@ -2,13 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Observation():
+    """
+        Class to represent an oberservation    
+    """
 
-    def __init__(self, m_transmitters, n_receivers):
+    def __init__(self, m_transmitters, n_receivers, radius=2000):
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
         self.tx_pos = None
         self.rx_pos = None
-        self._array_radius = 2e3
+        self._array_radius = radius
         self.place_antennas()
         self._c = 300000
         self.alpha = 1
@@ -72,14 +75,14 @@ class Observation():
                 tau (float): time delay
 
             Returns:
-                sx_m (float): Transmitted signal amplitude at time t
+                sx_m (float): Transmitted signal amplitude at time t-tau
         """
 
         sx_m = np.cos(2*np.pi*self._fc*(t-tau))
 
         return sx_m
 
-    def observations(self, target_pos: list, t: float) -> list:
+    def observation(self, target_pos: list, t: float) -> list:
         """ Calculate observed signal from target position
 
             Args:
@@ -99,8 +102,5 @@ class Observation():
 
         return r_k
 
-
-
 if __name__ == '__main__':
     obs = Observation(10, 10)
-    print(obs.time_delay(3, 23.8, 1324.5))
