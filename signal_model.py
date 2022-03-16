@@ -59,9 +59,10 @@ class Signal(Observation, System):
         time = np.linspace(0, self.k_tot, self.num_samples)
         r_k = [self.observation(self.states[i], time[i]) for i in range(len(self.states))]
 
-        return r_k
+        return r_k[0]
 
 
 if __name__ == '__main__':
-    sig = Signal(10000, [2000, 2000], 4e-4, 10, 10)
+    sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
     obs = sig.observe()
+    print(obs)
