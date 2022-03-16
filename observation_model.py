@@ -101,7 +101,7 @@ class Observation():
         for rx_n in range(self.n_receivers):
             tau = self.time_delay(rx_n, target_pos[0], target_pos[1])
             sx_m = self.tx_signal(t, tau)
-            rk_n = sum([self.alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau)])
+            rk_n = sum(self.alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau))
             r_k.append(rk_n)
-
+ 
         return r_k
