@@ -12,9 +12,9 @@ class Signal(Observation, System):
         Class to create a signal model from Observation and System classes
     """
 
-    def __init__(self, k_tot: int, region: list,
-                 time_step: float, m_transmitters: int,
-                 n_receivers: int):
+    def __init__(self, k_tot=10, region=[2000, 2000],
+                 time_step=0.4, m_transmitters=10,
+                 n_receivers=10):
         self.k_tot = k_tot
         self.region = region
         self.time_step = time_step
@@ -46,6 +46,21 @@ class Signal(Observation, System):
         plt.legend()
         plt.show()
 
+    def observe_no_gain(self):
+        """
+            Creates observations for all receivers for all states at all times
+
+            Args:
+                no value
+
+            Returns:
+                s_k (np.ndarray): Nested lists of receiver amplitudes for each state
+        """
+        time = np.linspace(0, self.k_tot, self.num_samples)
+        s_k = [self.observation_no_gain(self.states[i], time[i]) for i in range(len(self.states))]
+
+        return np.array(s_k)
+
     def observe(self):
         """
             Creates observations for all receivers for all states at all times
@@ -54,7 +69,7 @@ class Signal(Observation, System):
                 no value
 
             Returns:
-                r_k (list): Nested lists of receiver amplitudes for each state
+                r_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
         time = np.linspace(0, self.k_tot, self.num_samples)
         r_k = [self.observation(self.states[i], time[i]) for i in range(len(self.states))]
@@ -63,6 +78,6 @@ class Signal(Observation, System):
 
 
 if __name__ == '__main__':
-    sig = Signal(2, [2000, 2000], 4e-4, 10, 10)
+    sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
     obs = sig.observe()
-    print(obs)
+    print(np.transpose(obs))

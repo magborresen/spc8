@@ -86,6 +86,26 @@ class Observation():
 
         return sx_m
 
+    def observation_no_gain(self, target_pos: list, t: float):
+        """ Calculate observed signal without complex gain from target position
+
+            Args:
+                target_pos (list): Target x and y position in that order
+                t (float): time
+
+            Returns:
+                s_k (list): Observed signals from receiver 0 to n
+
+        """
+        s_k = []
+        for rx_n in range(self.n_receivers):
+            tau = self.time_delay(rx_n, target_pos[0], target_pos[1])
+            sx_m = self.tx_signal(t, tau)
+            sk_n = sum(sx_m * np.exp(1j*2*np.pi*self._fc*tau))
+            s_k.append(sk_n)
+
+        return np.array(s_k)
+
     def observation(self, target_pos: list, t: float) -> list:
         """ Calculate observed signal from target position
 
@@ -94,7 +114,7 @@ class Observation():
                 t (float): time
 
             Returns:
-                rk (list): Observed signals from receiver 0 to n
+                r_k (list): Observed signals from receiver 0 to n
 
         """
         r_k = []
@@ -103,5 +123,5 @@ class Observation():
             sx_m = self.tx_signal(t, tau)
             rk_n = sum(self.alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau))
             r_k.append(rk_n)
- 
-        return r_k
+
+        return np.array(r_k)
