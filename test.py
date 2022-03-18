@@ -8,6 +8,6 @@ pf = ParticleFilter(10)
 obs_ng = sig.observe_no_gain()
 obs = sig.observe()
 
-o = pf.init_omega_uniform([2000, 2000])
+pf.init_particles_uniform([2000, 2000])
 
-print(o)
+pf.plot_particles()
