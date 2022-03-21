@@ -21,7 +21,14 @@ class Signal(Observation, System):
         self.num_samples = int(self.k_tot / self.time_step)
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
-        Observation.__init__(self, self.m_transmitters, self.n_receivers, self.region)
+        self._fc = 4e6
+        self._fs = 2 * self._fc
+        self._samples_per_obs = int(self._fs * self.time_step)
+        self._t_obs = 2000 * self.time_step
+        Observation.__init__(self, self.m_transmitters,
+                             self.n_receivers, self.region,
+                             self._samples_per_obs)
+
         System.__init__(self, self.time_step, self.region)
         self.states = System.generate_states(self, self.k_tot)
 
@@ -61,7 +68,7 @@ class Signal(Observation, System):
 
         return np.array(s_k)
 
-    def observe(self):
+    def observe(self, k_obs):
         """
             Creates observations for all receivers for all states at all times
 
@@ -71,13 +78,13 @@ class Signal(Observation, System):
             Returns:
                 r_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(0, self.k_tot, self.num_samples)
-        r_k = [self.observation(self.states[i], time[i]) for i in range(len(self.states))]
+        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        r_k = self.observation(self.states[0], time, k_obs*self._t_obs)
 
         return np.array(r_k)
 
 
 if __name__ == '__main__':
     sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
-    obs = sig.observe()
-    print(np.transpose(obs))
+    obs = sig.observe(1)
+    print(np.transpose(obs).shape)
