@@ -9,7 +9,8 @@ class Observation():
         Class to represent an oberservation    
     """
 
-    def __init__(self, m_transmitters: int, n_receivers: int, region: list, samples_per_obs: float):
+    def __init__(self, m_transmitters: int, n_receivers: int,
+                 region: list, samples_per_obs: float):
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
         self.region = region
@@ -58,7 +59,9 @@ class Observation():
         plt.ylabel("Position [m]")
         plt.show()
 
-    def time_delay(self, rx_n: int, tx_m: int, theta: np.ndarray, t_vec: np.ndarray, t_start: float) -> list:
+    def time_delay(self, rx_n: int, tx_m: int,
+                   theta: np.ndarray, t_vec: np.ndarray,
+                   t_start: float) -> list:
         """ Find time delay from receiver n to the target to all m transmitters
 
             Args:
@@ -100,7 +103,8 @@ class Observation():
 
         return sx_m
 
-    def observation_no_gain(self, theta: np.ndarray, t_vec: np.ndarray, t_start: float) -> np.ndarray:
+    def observation_no_gain(self, theta: np.ndarray,
+                            t_vec: np.ndarray, t_start: float) -> np.ndarray:
         """ Calculate observed signal without complex gain from target position
 
             Args:
@@ -122,7 +126,8 @@ class Observation():
 
         return np.array(s_k)
 
-    def observation(self, theta: np.ndarray, t_vec: np.ndarray, t_start: float) -> np.ndarray:
+    def observation(self, theta: np.ndarray,
+                    t_vec: np.ndarray, t_start: float) -> np.ndarray:
         """ Calculate observed signal from target position
 
             Args:

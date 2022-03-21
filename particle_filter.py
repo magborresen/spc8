@@ -105,7 +105,7 @@ class ParticleFilter():
         return None
 
     def update_posterior(self):
-        self.posterior = np.power((2 * np.pi * np.var(self.weights)), - 
+        return None 
 
     def plot_particles(self):
         """
