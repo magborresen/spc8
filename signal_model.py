@@ -84,7 +84,19 @@ class Signal(Observation, System):
 
         return np.array(s_k)
 
-    def observe_y(self, k_obs: int) -> np.ndarray:
+    def add_noise(self, obs, SNR_dB : float):
+        SNR = 10.0**((SNR_dB)/10.0)
+        rec = len(obs)
+        obs_n = []
+        for r in range(rec):
+            s_power = np.var(obs[r])
+            n_power = s_power/SNR
+            noise = np.random.multivariate_normal((0,0), (n_power/2)*np.eye(2), len(obs[r]))
+            noise = noise.view(np.complex128)
+            obs_n.append([sum(x)[0] for x in zip(obs[r], noise)])
+        return np.array(obs_n)
+
+    def observe_y(self, k_obs: int, d_dB : float) -> np.ndarray:
         """
             Creates observations for all receivers for all states at all times
 
@@ -96,8 +108,8 @@ class Signal(Observation, System):
         """
         time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
         y_k = self.observation(self.states[k_obs], time, k_obs*self._t_obs)
-
-        return np.array(y_k)
+        y_k_noisy = self.add_noise(np.array(y_k), d_dB)
+        return y_k_noisy
 
     def observe_x(self, k_obs: int, theta: np.ndarray) -> np.ndarray:
         """
@@ -116,4 +128,5 @@ class Signal(Observation, System):
 
 
 if __name__ == '__main__':
-    sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
+    sig = Signal(2, [2000, 2000], 4e-4, 10, 10)
+    obs = sig.observe_y(1, 30.0)
