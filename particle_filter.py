@@ -1,16 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from signal_model import Signal
 
 
-class ParticleFilter():
+class ParticleFilter(Signal):
     """
         Creates a particle filter object
     """
 
-    def __init__(self, n_particles: int, region: list, fs: float):
+    def __init__(self, n_particles: int, k_tot=10, region=[2000, 2000],
+                 time_step=0.4, m_transmitters=10,
+                 n_receivers=10):
+        Signal.__init__(self, k_tot=k_tot, region=region, time_step=time_step,
+                        m_transmitters=m_transmitters, n_receivers=n_receivers)
         self._n_particles = n_particles
-        self.region = region
-        self._fs = fs
         self.phi_hat = None
         self.alpha_hat = None
         self.alpha = None
@@ -24,7 +27,7 @@ class ParticleFilter():
             Initialize the particles based on a uniform distribution
 
             Args:
-                region (list): x and y limits of the observation region
+                no value
 
             Returns:
                 no value
@@ -45,12 +48,10 @@ class ParticleFilter():
             Initialize weights for the associated particles
         """
         # Initialize weights
-        self.weights = np.random.uniform(low=0,
-                                         high=self.region[1],
-                                         size=(self._n_particles))
+        w_value = 1 / self._n_particles
 
         # Normalize weights
-        self.weights = np.abs(self.weights) / abs(np.sum(self.weights))
+        self.weights = np.full((self._n_particles, 1), w_value)
 
     def init_phi_ml(self, y_1, s_1):
         """
@@ -104,8 +105,20 @@ class ParticleFilter():
         """
         return None
 
-    def update_posterior(self):
-        return None 
+    def update_posterior(self, y_k, x_k):
+        """
+            Update the posterior probability for each particle target signal
+
+            Args:
+                y_k (np.ndarray): Observed signal for observation k
+                x_k (np.ndarray): Target signal for observation k
+        """
+        self.posterior = [((2 * np.pi *
+                        np.var(self.weights))**(-self._samples_per_obs*self.m_transmitters) *
+                        np.exp(- 1 / np.var(self.weights) *
+                        np.linalg.norm(y_k - x_k_i))) for x_k_i in x_k]
+
+        self.posterior = np.array(self.posterior)
 
     def plot_particles(self):
         """
@@ -123,8 +136,27 @@ class ParticleFilter():
         plt.title("Particle Locations")
         plt.show()
 
+    def plot_weights(self):
+        """
+            Creates a scatter plot of the weights. Size of each point
+            corresponds to the size of the associated weight.
+
+            Args:
+                no value
+
+            Returns:
+                no value
+        """
+
+        plt.scatter(self.theta[:,0], self.theta[:,1], s=10000*self.weights, alpha=0.5)
+        plt.xlabel("x position [m]")
+        plt.ylabel("y position [m]")
+        plt.title("Particle locations with weights")
+        plt.show()
+
 ## Testing
 if __name__ == '__main__':
-    pf = ParticleFilter(1000, [2000, 2000])
+    pf = ParticleFilter(1000, 1, [2000, 2000], 4e-4, 10, 10)
     pf.init_particles_uniform()
     pf.init_weights()
+    pf.plot_weights()

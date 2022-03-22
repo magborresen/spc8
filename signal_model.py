@@ -53,9 +53,25 @@ class Signal(Observation, System):
         plt.legend()
         plt.show()
 
-    def observe_no_gain(self, k_obs: int) -> np.ndarray:
+    def target_no_gain(self, k_obs: int) -> np.ndarray:
         """
-            Creates observations for all receivers for all states at all times
+            Creates observations for all target signals with no gain for all times in the k'th observation
+
+            Args:
+                no value
+
+            Returns:
+                s_k (np.ndarray): Nested lists of receiver amplitudes for each state
+        """
+        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        s_k = self.observation_no_gain(self.states[0], time, k_obs*self._t_obs)
+
+        return np.array(s_k)
+
+    def target_signal(self, k_obs: int) -> np.ndarray:
+
+        """
+            Creates observations for all target signals for all times in the k'th observation
 
             Args:
                 no value
@@ -68,7 +84,7 @@ class Signal(Observation, System):
 
         return np.array(s_k)
 
-    def observe(self, k_obs: int) -> np.ndarray:
+    def observe_y(self, k_obs: int) -> np.ndarray:
         """
             Creates observations for all receivers for all states at all times
 
@@ -76,15 +92,28 @@ class Signal(Observation, System):
                 no value
 
             Returns:
-                r_k (np.ndarray): Nested lists of receiver amplitudes for each state
+                y_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
         time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
-        r_k = self.observation(self.states[0], time, k_obs*self._t_obs)
+        y_k = self.observation(self.states[0], time, k_obs*self._t_obs)
 
-        return np.array(r_k)
+        return np.array(y_k)
+
+    def observe_x(self, k_obs: int, theta: np.ndarray) -> np.ndarray:
+        """
+            Creates observations for all receivers for all states at all times
+
+            Args:
+                no value
+
+            Returns:
+                x_k (np.ndarray): Nested lists of receiver amplitudes for each state
+        """
+        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        x_k = self.observation(theta, time, k_obs*self._t_obs)
+
+        return np.array(x_k)
 
 
 if __name__ == '__main__':
     sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
-    obs = sig.observe(1)
-    print(np.transpose(obs).shape)

@@ -85,6 +85,5 @@ class System():
 if __name__ == '__main__':
     model = System(1, (5000,5000))
     state = model.generate_states(100, np.array([[0],[0],[10],[10]]))
-    print(model.velocity(state))
-    model.plot_trajectory(state)
+    print(model.generate_states(1))
     
