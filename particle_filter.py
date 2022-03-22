@@ -8,12 +8,15 @@ class ParticleFilter(Signal):
         Creates a particle filter object
     """
 
-    def __init__(self, n_particles: int, k_tot=10, region=[2000, 2000],
+    def __init__(self, n_particles=100, k_tot=10, region=[2000, 2000],
                  time_step=0.4, m_transmitters=10,
                  n_receivers=10):
-        Signal.__init__(self, k_tot=k_tot, region=region, time_step=time_step,
-                        m_transmitters=m_transmitters, n_receivers=n_receivers)
         self._n_particles = n_particles
+        self._k_tot = k_tot
+        self.region = region
+        self._time_step = time_step
+        self._m_transmitters = m_transmitters
+        self._n_receivers = n_receivers
         self.phi_hat = None
         self.alpha_hat = None
         self.alpha = None
@@ -21,6 +24,8 @@ class ParticleFilter(Signal):
         self.acc = None
         self.weights = None
         self.posterior = None
+        Signal.__init__(self, k_tot=self._k_tot, region=self.region, time_step=self._time_step,
+                        m_transmitters=self._m_transmitters, n_receivers=self._n_receivers)
 
     def init_particles_uniform(self):
         """
@@ -32,16 +37,22 @@ class ParticleFilter(Signal):
             Returns:
                 no value
         """
-        # Initialize positions and velocities
-        self.theta = np.random.uniform(low=-self.region[0],
+        # Initialize positions
+        p = np.random.uniform(low=-self.region[0],
                                        high=self.region[1],
-                                       size=(self._n_particles, 4, 1))
+                                       size=(self._n_particles, 2, 1))
+
+        # Initialize velocities
+        v = np.full((self._n_particles, 2, 1), 5)
+
+        # Concatenate to create theta
+        self.theta = np.concatenate((p, v), axis=1)
 
         # Initialize accelerations
         self.acc = np.zeros((self._n_particles, 2, 1))
 
         # Initialize gains
-        self.alpha = np.ones((self._n_particles, 2, 1))
+        self.alpha = np.ones((self._n_particles, 1))
 
     def init_weights(self):
         """
@@ -156,7 +167,7 @@ class ParticleFilter(Signal):
 
 ## Testing
 if __name__ == '__main__':
-    pf = ParticleFilter(1000, 1, [2000, 2000], 4e-4, 10, 10)
+    pf = ParticleFilter(10, 2, [2000, 2000], 4e-4, 10, 10)
     pf.init_particles_uniform()
-    pf.init_weights()
-    pf.plot_weights()
+    y_k = pf.observe_y(0)
+    print(y_k.shape)

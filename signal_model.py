@@ -94,14 +94,15 @@ class Signal(Observation, System):
             Returns:
                 y_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        time = np.linspace(k_obs*self._t_obs, k_obs*self.time_step +
+                           self._t_obs, self._samples_per_obs)
         y_k = self.observation(self.states[k_obs], time, k_obs*self._t_obs)
 
         return np.array(y_k)
 
     def observe_x(self, k_obs: int, theta: np.ndarray) -> np.ndarray:
         """
-            Creates observations for all receivers for all states at all times
+            Creates observations for all receivers for the k'th observation at all times in k
 
             Args:
                 no value
@@ -109,7 +110,8 @@ class Signal(Observation, System):
             Returns:
                 x_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        time = np.linspace(k_obs*self._t_obs, k_obs*self.time_step +
+                           self._t_obs, self._samples_per_obs)
         x_k = self.observation(theta, time, k_obs*self._t_obs)
 
         return np.array(x_k)
@@ -117,3 +119,4 @@ class Signal(Observation, System):
 
 if __name__ == '__main__':
     sig = Signal(1, [2000, 2000], 4e-4, 10, 10)
+    print(sig.observe_y(0).shape)

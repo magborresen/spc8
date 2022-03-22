@@ -19,7 +19,6 @@ class Observation():
         self._array_radius = np.sqrt(2) * self.region[0]
         self.place_antennas()
         self._c = 300000
-        self.alpha = 1
         self._fc = 4e6
         self._samples_per_obs = samples_per_obs
 
@@ -127,7 +126,7 @@ class Observation():
         return np.array(s_k)
 
     def observation(self, theta: np.ndarray,
-                    t_vec: np.ndarray, t_start: float) -> np.ndarray:
+                    t_vec: np.ndarray, t_start: float, alpha=1) -> np.ndarray:
         """ Calculate observed signal from target position
 
             Args:
@@ -144,7 +143,7 @@ class Observation():
             for tx_m in range(self.m_transmitters):
                 tau = self.time_delay(rx_n, tx_m, theta, t_vec, t_start)
                 sx_m = self.tx_signal(t_vec, tau)
-                rk_n += self.alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau)
+                rk_n += alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau)
             r_k.append(rk_n)
 
         return np.array(r_k)
