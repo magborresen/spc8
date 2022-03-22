@@ -95,7 +95,7 @@ class Signal(Observation, System):
                 y_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
         time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
-        y_k = self.observation(self.states[0], time, k_obs*self._t_obs)
+        y_k = self.observation(self.states[k_obs], time, k_obs*self._t_obs)
 
         return np.array(y_k)
 
