@@ -53,7 +53,7 @@ class Signal(Observation, System):
         plt.legend()
         plt.show()
 
-    def observe_no_gain(self):
+    def observe_no_gain(self, k_obs: int) -> np.ndarray:
         """
             Creates observations for all receivers for all states at all times
 
@@ -63,12 +63,12 @@ class Signal(Observation, System):
             Returns:
                 s_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(0, self.k_tot, self.num_samples)
-        s_k = [self.observation_no_gain(self.states[i], time[i]) for i in range(len(self.states))]
+        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
+        s_k = self.observation(self.states[0], time, k_obs*self._t_obs)
 
         return np.array(s_k)
 
-    def observe(self, k_obs):
+    def observe(self, k_obs: int) -> np.ndarray:
         """
             Creates observations for all receivers for all states at all times
 
