@@ -21,8 +21,9 @@ class Signal(Observation, System):
         self.num_samples = int(self.k_tot / self.time_step)
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
-        self._fc = 4e6
+        self._fc = 30e9
         self._fs = 2 * self._fc
+        self._c = 300e6
         self._samples_per_obs = int(self._fs * self.time_step)
         self._t_obs = 2000 * self.time_step
         Observation.__init__(self, self.m_transmitters,
@@ -47,6 +48,8 @@ class Signal(Observation, System):
         ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
         ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
         ax.set_aspect(1)
+        ax.set_xlim(0, self.region[0])
+        ax.set_ylim(0, self.region[0])
         plt.title('Observation region with antennas and trajectory')
         plt.ylabel('y [m]')
         plt.xlabel('x [m]')
@@ -130,5 +133,4 @@ class Signal(Observation, System):
 
 
 if __name__ == '__main__':
-    sig = Signal(2, [2000, 2000], 4e-4, 10, 10)
-    obs = sig.observe_y(1, 30.0)
+    sig = Signal(1000, [2000, 2000], 4e-4, 10, 10)

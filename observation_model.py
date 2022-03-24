@@ -18,8 +18,8 @@ class Observation():
         self.rx_pos = None
         self._array_radius = np.sqrt(2) * self.region[0]
         self.place_antennas()
-        self._c = 300000
-        self._fc = 4e6
+        self._c = 300e6
+        self._fc = 30e9
         self._samples_per_obs = samples_per_obs
 
     def place_antennas(self) -> None:
@@ -31,15 +31,18 @@ class Observation():
             Returns:
                 no value
         """
-        self.tx_pos = [self._array_radius*np.cos(np.linspace(0, 2*np.pi, self.m_transmitters)),
-                       self._array_radius*np.sin(np.linspace(0, 2*np.pi, self.m_transmitters))]
 
-        self.tx_pos = np.array(self.tx_pos)
+        lambda_f = self._c / self._fc
 
-        self.rx_pos = [self._array_radius*np.cos(np.linspace(0, 2*np.pi, self.n_receivers)),
-                       self._array_radius*np.sin(np.linspace(0, 2*np.pi, self.n_receivers))]
+        self.tx_pos = np.array([np.linspace(lambda_f / 2,
+                                            self.m_transmitters * lambda_f/2,
+                                            self.m_transmitters),
+                                np.linspace((self.n_receivers + self.m_transmitters-1) * lambda_f/2,
+                                            self.n_receivers * lambda_f/2,
+                                            self.m_transmitters)])
 
-        self.rx_pos = np.array(self.rx_pos)
+        self.rx_pos = np.array([np.linspace(self.tx_pos[0][-1] + lambda_f/2, (self.n_receivers + self.m_transmitters) * lambda_f/2, self.n_receivers),
+                                np.linspace(self.tx_pos[1][-1] - lambda_f/2, 0, self.n_receivers)])
 
     def plot_antennas(self) -> None:
         """ Plot antenna postions in 2D space
@@ -147,3 +150,5 @@ class Observation():
             r_k.append(rk_n)
 
         return np.array(r_k)
+
+

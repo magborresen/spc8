@@ -124,12 +124,12 @@ class ParticleFilter(Signal):
                 y_k (np.ndarray): Observed signal for observation k
                 x_k (np.ndarray): Target signal for observation k
         """
-        self.posterior = [((2 * np.pi *
-                        np.var(self.weights))**(-self._samples_per_obs*self.m_transmitters) *
-                        np.exp(- 1 / np.var(self.weights) *
-                        np.linalg.norm(y_k - x_k_i))) for x_k_i in x_k]
+        sigma_w = np.var(self.weights)
+        print(sigma_w)
+        c = (2 * np.pi * sigma_w)**(-self._samples_per_obs * self._n_receivers)
+        #self.posterior = [(c * np.exp(- 1 / np.var(sigma_w) * np.square(np.linalg.norm(y_k - x_k_i)))) for x_k_i in x_k]
 
-        self.posterior = np.array(self.posterior)
+        #self.posterior = np.array(self.posterior)
 
     def plot_particles(self):
         """
@@ -169,5 +169,9 @@ class ParticleFilter(Signal):
 if __name__ == '__main__':
     pf = ParticleFilter(10, 2, [2000, 2000], 4e-4, 10, 10)
     pf.init_particles_uniform()
-    y_k = pf.observe_y(0)
-    print(y_k.shape)
+    pf.init_weights()
+    y_k = pf.observe_y(0, 30.0)
+    x_k = pf.observe_x(0, pf.theta[0])
+    #print(x_k.shape)
+    pf.update_posterior(y_k, x_k)
+    #print(pf.posterior)
