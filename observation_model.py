@@ -11,6 +11,7 @@ class Observation():
 
     def __init__(self, m_transmitters: int, n_receivers: int,
                  region: list, samples_per_obs: float):
+
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
         self.region = region
@@ -41,8 +42,12 @@ class Observation():
                                             self.n_receivers * lambda_f/2,
                                             self.m_transmitters)])
 
-        self.rx_pos = np.array([np.linspace(self.tx_pos[0][-1] + lambda_f/2, (self.n_receivers + self.m_transmitters) * lambda_f/2, self.n_receivers),
-                                np.linspace(self.tx_pos[1][-1] - lambda_f/2, 0, self.n_receivers)])
+        self.rx_pos = np.array([np.linspace(self.tx_pos[0][-1] + lambda_f/2,
+                                           (self.n_receivers + self.m_transmitters) * lambda_f/2,
+                                            self.n_receivers),
+                                np.linspace(self.tx_pos[1][-1] - lambda_f/2,
+                                            0,
+                                            self.n_receivers)])
 
     def plot_antennas(self) -> None:
         """ Plot antenna postions in 2D space
@@ -76,13 +81,22 @@ class Observation():
         """
         traj = self.trajectory(t_vec, t_start, theta)
 
-        tau = 1/ self._c * np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) + np.linalg.norm(self.rx_pos[:,rx_n] - traj.T)
+        tau = (1 / self._c * np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) +
+               np.linalg.norm(self.rx_pos[:,rx_n] - traj.T))
 
         return tau
 
     def trajectory(self, t_vec: np.ndarray, t_start: float, theta: np.ndarray) -> np.ndarray:
         """
             Calculate trajectory used for time delay tau
+
+            Args:
+                t_vec (np.ndarray): time vector
+                t_start (float): start time of current observation period
+                theta (np.ndarray): Target position
+
+            Returns:
+                r_k (np.ndarray): Short time trajectory model based on original position and velocity.
         """
 
         r_k = theta[0:2] + (t_vec - t_start) * theta[2:]
@@ -101,7 +115,7 @@ class Observation():
                 sx_m (float): Transmitted signal amplitude at time t-tau
         """
 
-        sx_m = np.cos(2*np.pi*self._fc*(t_vec-tau))
+        sx_m = np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
         return sx_m
 
