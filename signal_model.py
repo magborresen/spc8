@@ -13,24 +13,24 @@ class Signal(Observation, System):
     """
 
     def __init__(self, k_tot=10, region=[2000, 2000],
-                 time_step=0.4, m_transmitters=10,
-                 n_receivers=10):
+                 m_transmitters=10, n_receivers=10,
+                 t_tx=4e-4, t_rx=10e-4):
         self.k_tot = k_tot
         self.region = region
-        self.time_step = time_step
-        self.num_samples = int(self.k_tot / self.time_step)
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
         self._fc = 30e9
         self._fs = 2 * self._fc
         self._c = 300e6
-        self._samples_per_obs = int(self._fs * self.time_step)
-        self._t_obs = 2000 * self.time_step
+        self.t_tx = t_tx
+        self.t_rx = t_rx
+        self._samples_per_obs = int(self._fs * self.t_rx)
+        self._t_obs = self.t_tx + self.t_rx
         Observation.__init__(self, self.m_transmitters,
                              self.n_receivers, self.region,
-                             self._samples_per_obs)
+                             self._samples_per_obs, self.t_tx)
 
-        System.__init__(self, self.time_step, self.region)
+        System.__init__(self, self._t_obs, self.region)
         self.states = System.generate_states(self, self.k_tot)
 
     def plot_region(self):
@@ -56,37 +56,6 @@ class Signal(Observation, System):
         plt.legend()
         plt.show()
 
-    def target_no_gain(self, k_obs: int) -> np.ndarray:
-        """
-            Creates observations for all target signals with no gain for all times in the k'th observation
-
-            Args:
-                no value
-
-            Returns:
-                s_k (np.ndarray): Nested lists of receiver amplitudes for each state
-        """
-        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
-        s_k = self.observation_no_gain(self.states[0], time, k_obs*self._t_obs)
-
-        return np.array(s_k)
-
-    def target_signal(self, k_obs: int) -> np.ndarray:
-
-        """
-            Creates observations for all target signals for all times in the k'th observation
-
-            Args:
-                no value
-
-            Returns:
-                s_k (np.ndarray): Nested lists of receiver amplitudes for each state
-        """
-        time = np.linspace(k_obs*self._t_obs, self.time_step, self._samples_per_obs)
-        s_k = self.observation(self.states[0], time, k_obs*self._t_obs)
-
-        return np.array(s_k)
-
     def add_noise(self, obs, SNR_dB : float):
         SNR = 10.0**((SNR_dB)/10.0)
         rec = len(obs)
@@ -99,34 +68,35 @@ class Signal(Observation, System):
             obs_n.append([sum(x)[0] for x in zip(obs[r], noise)])
         return np.array(obs_n)
 
-    def observe_y(self, k_obs: int, d_dB : float) -> np.ndarray:
+    def observe_y(self, k_obs: int, theta, d_dB : float) -> np.ndarray:
         """
             Creates observations for all receivers for all states at all times
 
             Args:
-                no value
+                k_obs (int): Current observation
+                theta (np.ndarray): Target position and velocity: x, y, vx, vy
+                d_dB (float): Desired SNR
 
             Returns:
                 y_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(k_obs*self._t_obs, k_obs*self.time_step +
-                           self._t_obs, self._samples_per_obs)
-        y_k = self.observation(self.states[k_obs], time, k_obs*self._t_obs)
-        y_k_noisy = self.add_noise(np.array(y_k), d_dB)
-        return y_k_noisy
+        y_k = self.observe_x(k_obs, theta)
+        #y_k = self.add_noise(np.array(y_k), d_dB)
+
+        return y_k
 
     def observe_x(self, k_obs: int, theta: np.ndarray) -> np.ndarray:
         """
             Creates observations for all receivers for the k'th observation at all times in k
 
             Args:
-                no value
+                k_obs (int): Current observation
+                theta (np.ndarray): Target position and velocity: x, y, vx, y
 
             Returns:
                 x_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace(k_obs*self._t_obs, k_obs*self.time_step +
-                           self._t_obs, self._samples_per_obs)
+        time = np.linspace((k_obs-1)*self._t_obs + self.t_tx, k_obs * self._t_obs, self._samples_per_obs)
         x_k = self.observation(theta, time, k_obs*self._t_obs)
 
         return np.array(x_k)
@@ -134,3 +104,4 @@ class Signal(Observation, System):
 
 if __name__ == '__main__':
     sig = Signal(1000, [2000, 2000], 4e-4, 10, 10)
+    print(sig.states[0])

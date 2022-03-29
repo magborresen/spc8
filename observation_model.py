@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 
 class Observation():
     """
-        Class to represent an oberservation    
+        Class to represent an oberservation   
     """
 
     def __init__(self, m_transmitters: int, n_receivers: int,
-                 region: list, samples_per_obs: float):
+                 region: list, samples_per_obs: float, t_tx: float):
 
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
@@ -21,7 +21,9 @@ class Observation():
         self.place_antennas()
         self._c = 300e6
         self._fc = 30e9
+        self.gain = 40
         self._samples_per_obs = samples_per_obs
+        self.t_tx = t_tx
 
     def place_antennas(self) -> None:
         """ Place collacted RX and TX antennas in 2D space
@@ -35,8 +37,7 @@ class Observation():
 
         lambda_f = self._c / self._fc
 
-        self.tx_pos = np.array([np.linspace(lambda_f / 2,
-                                            self.m_transmitters * lambda_f/2,
+        self.tx_pos = np.array([np.linspace(lambda_f / 2, self.m_transmitters * lambda_f/2,
                                             self.m_transmitters),
                                 np.linspace((self.n_receivers + self.m_transmitters-1) * lambda_f/2,
                                             self.n_receivers * lambda_f/2,
@@ -79,32 +80,31 @@ class Observation():
             Returns:
                 tau (float): Signal time delay
         """
-        traj = self.trajectory(t_vec, t_start, theta)
+        traj = self.trajectory(t_vec, theta)
 
         tau = (1 / self._c * np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) +
                np.linalg.norm(self.rx_pos[:,rx_n] - traj.T))
 
         return tau
 
-    def trajectory(self, t_vec: np.ndarray, t_start: float, theta: np.ndarray) -> np.ndarray:
+    def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
             Calculate trajectory used for time delay tau
 
             Args:
                 t_vec (np.ndarray): time vector
-                t_start (float): start time of current observation period
                 theta (np.ndarray): Target position
 
             Returns:
                 r_k (np.ndarray): Short time trajectory model based on original position and velocity.
         """
 
-        r_k = theta[0:2] + (t_vec - t_start) * theta[2:]
+        r_k = theta[0:2] + (t_vec - t_vec[0]) * theta[2:]
 
         return r_k
 
 
-    def tx_signal(self, t_vec: np.ndarray, tau: np.ndarray) -> float:
+    def tx_signal(self, tx_m: int, t_vec: np.ndarray, tau: np.ndarray) -> float:
         """ Create the tx radar signal
 
             Args:
@@ -115,13 +115,17 @@ class Observation():
                 sx_m (float): Transmitted signal amplitude at time t-tau
         """
 
-        sx_m = np.exp(2j * np.pi * self._fc * (t_vec-tau))
+        w = np.where(tx_m * self.t_tx <= t_vec - tau < (tx_m+1) * self.t_tx, 1, 0)
+
+        a_km = self.gain * w
+
+        sx_m = a_km * np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
         return sx_m
 
-    def observation_no_gain(self, theta: np.ndarray,
-                            t_vec: np.ndarray, t_start: float) -> np.ndarray:
-        """ Calculate observed signal without complex gain from target position
+    def observation_no_alpha(self, theta: np.ndarray,
+                            t_vec: np.ndarray) -> np.ndarray:
+        """ Calculate observed signal without complex attenuation from target position
 
             Args:
                 target_pos (list): Target x and y position in that order
@@ -135,20 +139,21 @@ class Observation():
         for rx_n in range(self.n_receivers):
             sk_n = 0
             for tx_m in range(self.m_transmitters):
-                tau = self.time_delay(rx_n, tx_m, theta, t_vec, t_start)
-                sx_m = self.tx_signal(t_vec, tau)
+                tau = self.time_delay(rx_n, tx_m, theta, t_vec)
+                sx_m = self.tx_signal(tx_m, t_vec, tau)
                 sk_n += sx_m * np.exp(1j*2*np.pi*self._fc*tau)
             s_k.append(sk_n)
 
         return np.array(s_k)
 
     def observation(self, theta: np.ndarray,
-                    t_vec: np.ndarray, t_start: float, alpha=1) -> np.ndarray:
+                    t_vec: np.ndarray, alpha=1) -> np.ndarray:
         """ Calculate observed signal from target position
 
             Args:
-                target_pos (list): Target x and y position in that order
-                t (float): time
+                theta (np.ndarray): Target position and velocity: x, y, vx, vy
+                t_vec (np.ndarray): Observation times
+                t_start
 
             Returns:
                 r_k (list): Observed signals from receiver 0 to n
@@ -158,11 +163,9 @@ class Observation():
         for rx_n in range(self.n_receivers):
             rk_n = 0
             for tx_m in range(self.m_transmitters):
-                tau = self.time_delay(rx_n, tx_m, theta, t_vec, t_start)
-                sx_m = self.tx_signal(t_vec, tau)
-                rk_n += alpha * sx_m * np.exp(1j*2*np.pi*self._fc*tau)
+                tau = self.time_delay(rx_n, tx_m, theta, t_vec)
+                sx_m = self.tx_signal(tx_m, t_vec, tau)
+                rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
             r_k.append(rk_n)
 
         return np.array(r_k)
-
-
