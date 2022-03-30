@@ -81,9 +81,12 @@ class Observation():
                 tau (float): Signal time delay
         """
         traj = self.trajectory(t_vec, theta)
-
-        tau = 1 / self._c * (np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) + np.linalg.norm(self.rx_pos[:,rx_n] - traj.T))
-
+        
+        d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
+        d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
+        
+        tau = 1 / self._c * (d_tx + d_rx)
+        
         return tau
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
@@ -113,8 +116,29 @@ class Observation():
             Returns:
                 sx_m (float): Transmitted signal amplitude at time t-tau
         """
+        #w = t_vec[(np.where((tx_m * self.t_tx <= (t_vec - tau)) & ((t_vec - tau) < (tx_m+1) * self.t_tx), 1, 0))]
+        
+        w = np.zeros(self._samples_per_obs)
+        
+        i = np.full_like(w, True, dtype=bool)
+        
+        t_delay = t_vec - tau
+        cond1 = self.t_tx * tx_m
+        cond2 = self.t_tx * (tx_m + 1)
+        
+        i[t_delay <= cond1] = False
+        i[t_delay > cond2] = False
+        
+        print(i)
+        
+        w[i] = 1
+        
+        #print(w)
+        # start = int(tx_m * self._samples_per_obs / self.m_transmitters)
+        # stop = int((1 + tx_m) * self._samples_per_obs / self.m_transmitters)
 
-        w = t_vec[(np.where((tx_m * self.t_tx <= (t_vec - tau)) & ((t_vec - tau) < (tx_m+1) * self.t_tx), 1, 0))]
+        # w[start:stop] = 1
+
         a_km = self.gain * w
         sx_m = a_km * np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
@@ -161,9 +185,10 @@ class Observation():
             rk_n = 0
             for tx_m in range(self.m_transmitters):
                 tau = self.time_delay(rx_n, tx_m, theta, t_vec)
-                print(tau)
                 sx_m = self.tx_signal(tx_m, t_vec, tau)
                 rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
             r_k.append(rk_n)
-
+        plt.plot(sx_m)
+        plt.plot(rk_n[0])
+        plt.show()
         return np.array(r_k)

@@ -33,7 +33,7 @@ class System():
         acc = np.vstack((ax,ay))        
         return acc
 
-    def generate_states(self, k_tot, init_state=14*np.ones((4,1))):
+    def generate_states(self, k_tot, init_state=np.array([[200], [200], [14], [14]])):
         """ Generate k states, based on acceleration.
 
             Args:

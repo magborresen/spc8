@@ -106,4 +106,6 @@ class Signal(Observation, System):
 
 if __name__ == '__main__':
     sig = Signal(10, [2000, 2000], 10, 10)
-    sig.observe_y(1, 0)
+    sig.observe_y(5, 0)
+    # plt.plot(sig.observe_y(1, 0)[0][1:100].real)
+    # plt.show()
