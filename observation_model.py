@@ -37,7 +37,8 @@ class Observation():
 
         lambda_f = self._c / self._fc
 
-        self.tx_pos = np.array([np.linspace(lambda_f / 2, self.m_transmitters * lambda_f/2,
+        self.tx_pos = np.array([np.linspace(lambda_f / 2,
+                                            self.m_transmitters * lambda_f/2,
                                             self.m_transmitters),
                                 np.linspace((self.n_receivers + self.m_transmitters-1) * lambda_f/2,
                                             self.n_receivers * lambda_f/2,
@@ -68,9 +69,8 @@ class Observation():
         plt.show()
 
     def time_delay(self, rx_n: int, tx_m: int,
-                   theta: np.ndarray, t_vec: np.ndarray,
-                   t_start: float) -> list:
-        """ Find time delay from receiver n to the target to all m transmitters
+                   theta: np.ndarray, t_vec: np.ndarray) -> list:
+        """ Find time delay from receiver n to the target to the m'th transmitters
 
             Args:
                 rx_n (int): Receiver to calculate delays for
@@ -82,8 +82,7 @@ class Observation():
         """
         traj = self.trajectory(t_vec, theta)
 
-        tau = (1 / self._c * np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) +
-               np.linalg.norm(self.rx_pos[:,rx_n] - traj.T))
+        tau = 1 / self._c * (np.linalg.norm(self.tx_pos[:,tx_m] - traj.T) + np.linalg.norm(self.rx_pos[:,rx_n] - traj.T))
 
         return tau
 
@@ -115,10 +114,8 @@ class Observation():
                 sx_m (float): Transmitted signal amplitude at time t-tau
         """
 
-        w = np.where(tx_m * self.t_tx <= t_vec - tau < (tx_m+1) * self.t_tx, 1, 0)
-
+        w = t_vec[(np.where((tx_m * self.t_tx <= (t_vec - tau)) & ((t_vec - tau) < (tx_m+1) * self.t_tx), 1, 0))]
         a_km = self.gain * w
-
         sx_m = a_km * np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
         return sx_m
@@ -164,6 +161,7 @@ class Observation():
             rk_n = 0
             for tx_m in range(self.m_transmitters):
                 tau = self.time_delay(rx_n, tx_m, theta, t_vec)
+                print(tau)
                 sx_m = self.tx_signal(tx_m, t_vec, tau)
                 rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
             r_k.append(rk_n)
