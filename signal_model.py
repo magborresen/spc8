@@ -30,7 +30,7 @@ class Signal(Observation, System):
 
         Observation.__init__(self, self.m_transmitters,
                              self.n_receivers, self.region,
-                             self._samples_per_obs, self.t_tx)
+                             self._samples_per_obs, self.t_tx, self._t_obs)
 
         System.__init__(self, self._t_obs, self.region)
         self.states = System.generate_states(self, self.k_tot)
@@ -98,14 +98,13 @@ class Signal(Observation, System):
             Returns:
                 x_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
-        time = np.linspace((k_obs-1)*self._t_obs + self.t_tx, k_obs * self._t_obs, self._samples_per_obs)
-        x_k = self.observation(self.states[k_obs], time, k_obs*self._t_obs)
+        time = np.linspace((k_obs-1)*self._t_obs + self.t_tx_tot, k_obs * self._t_obs, self._samples_per_obs)
+        print(time)
+        x_k = self.observation(self.states[k_obs], time)
 
         return np.array(x_k)
 
 
 if __name__ == '__main__':
     sig = Signal(10, [2000, 2000], 10, 10)
-    sig.observe_y(5, 0)
-    # plt.plot(sig.observe_y(1, 0)[0][1:100].real)
-    # plt.show()
+    sig.observe_y(1, 0)
