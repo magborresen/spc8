@@ -12,7 +12,7 @@ class Observation():
 
     def __init__(self, m_transmitters: int, n_receivers: int,
                  region: list, samples_per_obs: float, t_tx: float,
-                 t_obs: float):
+                 t_obs: float, fc: float):
 
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
@@ -22,7 +22,7 @@ class Observation():
         self._array_radius = np.sqrt(2) * self.region[0]
         self.place_antennas()
         self._c = 300e6
-        self._fc = 30e9
+        self._fc = fc
         self.gain = 40
         self._samples_per_obs = samples_per_obs
         self.t_tx = t_tx
@@ -118,7 +118,7 @@ class Observation():
                 tau (np.ndarray): Array containing calculated time delays between tx -> target -> rx
 
             Returns:
-                sx_m (float): Transmitted signal amplitude at time t-tau
+                sx_m (np.ndarray): Transmitted signal amplitudes at times t_vec-tau
         """
 
         omega = sig.square(2 * np.pi * 1/self.t_obs * ((t_vec - tx_m*self.t_tx) - tau),
@@ -127,9 +127,17 @@ class Observation():
         omega = np.where(omega < 1, 0, 1)
 
         a_km = self.gain * omega
-        sx_m = a_km * np.exp(2j * np.pi * self._fc * (t_vec-tau))
+        chirp_t = np.where(omega==1)
+        chirp_start = chirp_t[0][0]
+        chirp_stop = chirp_t[0][-1]
+        delay = t_vec - tau
+        print(delay[chirp_start], delay[chirp_stop])
+        f_t = sig.chirp(delay[chirp_start], self._fc - 150e6, delay[chirp_stop], self._fc + 150e6)
+        print(f_t)
+        f_t = np.where(omega < 1, 0, f_t)
+        sx_m = f_t * np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
-        return omega, sx_m
+        return f_t, sx_m
 
     def observation_no_alpha(self, theta: np.ndarray,
                             t_vec: np.ndarray) -> np.ndarray:
@@ -172,13 +180,13 @@ class Observation():
             rk_n = 0
             for tx_m in range(self.m_transmitters):
                 tau = self.time_delay(rx_n, tx_m, theta, t_vec)
-                omega, sx_m = self.tx_signal(tx_m, t_vec, tau)
+                f_t, sx_m = self.tx_signal(tx_m, t_vec, tau)
                 rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
+                if rx_n == 0:
+                    plt.plot(t_vec - tau, f_t, label=f"TX {tx_m}")
+                    print(f_t)
             r_k.append(rk_n)
 
-        plt.figure(0)
-        plt.plot(t_vec - tau, sx_m.real)
-        plt.figure(1)
-        plt.plot(t_vec, np.array(r_k)[0].real)
+        plt.legend()
         plt.show()
         return np.array(r_k)

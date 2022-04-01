@@ -14,23 +14,23 @@ class Signal(Observation, System):
 
     def __init__(self, k_tot=10, region=[2000, 2000],
                  m_transmitters=10, n_receivers=10,
-                 t_tx_tot=4e-6, t_rx=10e-6):
+                 t_tx_tot=1.33e-7, t_rx=1.8734e-5):
         self.k_tot = k_tot
         self.region = region
         self.m_transmitters = m_transmitters
         self.n_receivers = n_receivers
-        self._fc = 1e9
-        self._fs = 2 * self._fc
-        self._c = 300e6
         self.t_tx_tot = t_tx_tot
         self.t_tx = self.t_tx_tot / self.m_transmitters
         self.t_rx = t_rx
-        self._samples_per_obs = int(self._fs * self.t_rx)
+        self._fc = 1e9
+        self._fs = 2 * self._fc
+        self._c = 300e6
         self._t_obs = self.t_tx_tot + self.t_rx
+        self._samples_per_obs = int(self._fs * self.t_rx)
 
         Observation.__init__(self, self.m_transmitters,
                              self.n_receivers, self.region,
-                             self._samples_per_obs, self.t_tx, self._t_obs)
+                             self._samples_per_obs, self.t_tx, self._t_obs, self._fc)
 
         System.__init__(self, self._t_obs, self.region)
         self.states = System.generate_states(self, self.k_tot)
@@ -98,13 +98,13 @@ class Signal(Observation, System):
             Returns:
                 x_k (np.ndarray): Nested lists of receiver amplitudes for each state
         """
+
         time = np.linspace((k_obs-1)*self._t_obs + self.t_tx_tot, k_obs * self._t_obs, self._samples_per_obs)
-        print(time)
         x_k = self.observation(self.states[k_obs], time)
 
         return np.array(x_k)
 
 
 if __name__ == '__main__':
-    sig = Signal(10, [2000, 2000], 10, 10)
+    sig = Signal(10, [2000, 2000], 2, 2)
     sig.observe_y(1, 0)
