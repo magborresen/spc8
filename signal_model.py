@@ -23,7 +23,7 @@ class Signal(Observation, System):
         self.t_tx = self.t_tx_tot / self.m_transmitters
         self.t_rx = t_rx
         self._fc = 1e9
-        self._fs = 2 * self._fc
+        self._fs = 20 * self._fc
         self._c = 300e6
         self._t_obs = self.t_tx_tot + self.t_rx
         self._samples_per_obs = int(self._fs * self.t_rx)

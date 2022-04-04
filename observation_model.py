@@ -126,18 +126,17 @@ class Observation():
 
         omega = np.where(omega < 1, 0, 1)
 
-        a_km = self.gain * omega
         chirp_t = np.where(omega==1)
         chirp_start = chirp_t[0][0]
         chirp_stop = chirp_t[0][-1]
         delay = t_vec - tau
-        print(delay[chirp_start], delay[chirp_stop])
-        f_t = sig.chirp(delay[chirp_start], self._fc - 150e6, delay[chirp_stop], self._fc + 150e6)
-        print(f_t)
-        f_t = np.where(omega < 1, 0, f_t)
-        sx_m = f_t * np.exp(2j * np.pi * self._fc * (t_vec-tau))
+        f_t = sig.chirp(delay[chirp_start:chirp_stop], self._fc - 150e6, delay[chirp_stop], self._fc + 150e6)
+        omega = omega.astype(np.float64)
+        omega[chirp_start:chirp_stop] = f_t
+        a_km = self.gain * omega
+        sx_m = a_km * np.exp(2j * np.pi * self._fc * (t_vec-tau))
 
-        return f_t, sx_m
+        return a_km, sx_m
 
     def observation_no_alpha(self, theta: np.ndarray,
                             t_vec: np.ndarray) -> np.ndarray:
@@ -184,7 +183,6 @@ class Observation():
                 rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
                 if rx_n == 0:
                     plt.plot(t_vec - tau, f_t, label=f"TX {tx_m}")
-                    print(f_t)
             r_k.append(rk_n)
 
         plt.legend()
