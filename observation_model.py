@@ -175,16 +175,62 @@ class Observation():
 
         """
         r_k = []
+        s_x = []
+        tau_mn = []
         for rx_n in range(self.n_receivers):
             rk_n = 0
             for tx_m in range(self.m_transmitters):
                 tau = self.time_delay(rx_n, tx_m, theta, t_vec)
+                tau_mn.append(tau)
                 f_t, sx_m = self.tx_signal(tx_m, t_vec, tau)
+                s_x.append(sx_m)
                 rk_n += alpha * sx_m * np.exp(2j*np.pi*self._fc*tau)
-                if rx_n == 0:
-                    plt.plot(t_vec - tau, f_t, label=f"TX {tx_m}")
             r_k.append(rk_n)
 
-        plt.legend()
-        plt.show()
+        self.smart_plotter((1,1), t_vec, tau_mn, s_x, r_k)
+
         return np.array(r_k)
+
+    def smart_plotter(self, rx, t_vec, tau, s_x, r_k):
+        """ Plot the observed signal (figure 1) and the transmitted signals (figure 2)
+
+            Args:
+                rx (list) = (a, b): Plot from receiver a to b
+                t_vec (np.ndarray): Observation times
+                tau (np.ndarray): Array containing calculated time delays between tx -> target -> rx
+                s_x (list): Transmitted signal amplitudes 0 to m*n
+                r_k (list): Observed signals from receiver 0 to n
+            Returns:
+                no value
+        """
+        for rx_n in range(rx[0]-1, rx[1]):
+            fig_rx, axs_rx = plt.subplots(2, sharex=True)
+            fig_rx.suptitle(f"Observed signal at receiver {rx_n+1}")
+            time = t_vec
+            idx = np.where(abs(r_k[rx_n]) > 0)
+            axs_rx[0].plot(time[idx], r_k[rx_n][idx].real, label=f"Rx {rx_n+1}")
+            axs_rx[1].plot(time[idx], r_k[rx_n][idx].imag, label=f"Rx {rx_n+1}")
+
+            fig_tx, axs_tx = plt.subplots(2, sharex=True)
+            fig_tx.suptitle(f"Signals transmitted to receiver {rx_n+1}")
+            for tx_m in range(self.m_transmitters):
+                time = t_vec - tau[self.m_transmitters * rx_n + tx_m]
+                idx = np.where(abs(s_x[tx_m]) > 0)
+                axs_tx[0].plot(time[idx], s_x[tx_m][idx].real, label=f"Tx {tx_m+1}")
+                axs_tx[1].plot(time[idx], s_x[tx_m][idx].imag, label=f"Tx {tx_m+1}")
+
+            axs_rx[0].set_title('Real part')
+            axs_rx[1].set_title('Imaginary part')
+            axs_rx[0].set_ylabel('Amplitude')
+            axs_rx[1].set_ylabel('Amplitude')
+            axs_rx[1].set_xlabel('Time (s)')
+            axs_rx[1].legend(loc='center left', bbox_to_anchor=(1, 1), ncol=1)
+
+            axs_tx[0].set_title('Real part')
+            axs_tx[1].set_title('Imaginary part')
+            axs_tx[0].set_ylabel('Amplitude')
+            axs_tx[1].set_ylabel('Amplitude')
+            axs_tx[1].set_xlabel('Time (s)')
+            axs_tx[1].legend(loc='center left', bbox_to_anchor=(1, 1), ncol=1)
+
+            plt.show()
