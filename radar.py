@@ -25,19 +25,22 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 14e-6
-        self.t_obs = self.t_rx * self.receiver.channels + self.transmitter.t_chirp * self.transmitter.channels
+        self.t_obs = (self.t_rx * self.receiver.channels +
+                      self.transmitter.t_chirp * self.transmitter.channels)
         self.t_tot = self.observations * self.t_obs
-        self.samples_per_obs = int(self.receiver.f_sample * self.t_obs)
         self.oversample = 10
-        self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs * self.oversample)
+        self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
+        self.t_vec = np.linspace(0,
+                                 self.t_tot,
+                                 self.observations * self.samples_per_obs )
         self.light_speed = 300e6
-        self.wavelength = self.c / self.receiver.f_sample
+        self.wavelength = self.light_speed / self.receiver.f_sample
         self.tx_pos = None
         self.rx_pos = None
         self.place_antennas()
         self.max_range = None
-        self.min_range = self.transmitter.t_chirp * self.c / 2
-        self.range_res = self.c / (2 * self.transmitter.bandwidth)
+        self.min_range = self.transmitter.t_chirp * self.light_speed / 2
+        self.range_res = self.light_speed / (2 * self.transmitter.bandwidth)
 
     def place_antennas(self):
         """
@@ -70,7 +73,7 @@ class Radar:
             Returns:
                 tau (float): Signal time delay
         """
-        
+
         traj = self.trajectory(t_vec, theta)
 
         tau = 2 / self.light_speed * traj
@@ -121,6 +124,4 @@ if __name__ == '__main__':
     tx = Transmitter()
     rx = Receiver()
     radar = Radar(tx, rx, 5, "tdm", 2000)
-    sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample)
-    plt.plot(radar.t_vec[0:radar.samples_per_obs], sig[0].real)
-    plt.show()
+    sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample*radar.oversample, plot=True)
