@@ -26,11 +26,11 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 14e-6
-        self.t_obs = self.t_rx * self.receiver.channels + self.transmitter.t_chirp * self.transmitter.channels
+        self.t_obs = (self.t_rx * self.receiver.channels +
+                      self.transmitter.t_chirp * self.transmitter.channels)
         self.t_tot = self.observations * self.t_obs
-        self.samples_per_obs = int(self.receiver.f_sample * self.t_obs)
         self.oversample = 10
-        #self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs * self.oversample)
+        self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
         self.wavelength = self.light_speed / self.receiver.f_sample
         self.tx_pos = None
@@ -71,7 +71,7 @@ class Radar:
             Returns:
                 tau (float): Signal time delay
         """
-        
+
         traj = self.trajectory(t_vec, theta)
 
         tau = 2 / self.light_speed * traj
@@ -138,6 +138,7 @@ if __name__ == '__main__':
     k_obs = 1000
     tx = Transmitter()
     rx = Receiver()
+
     radar = Radar(tx, rx, k_obs, "tdm", 2000)
         
     target = Target(radar.t_obs)
@@ -145,3 +146,8 @@ if __name__ == '__main__':
     radar.plot_region(states)
 
     t = radar.observe(1, states[0])
+
+
+    # radar = Radar(tx, rx, 5, "tdm", 2000)
+    # sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample*radar.oversample, plot=True)
+
