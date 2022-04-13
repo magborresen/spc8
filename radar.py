@@ -28,8 +28,9 @@ class Radar:
         self.t_obs = self.t_rx * self.receiver.channels + self.transmitter.t_chirp * self.transmitter.channels
         self.t_tot = self.observations * self.t_obs
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs)
-        self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs)
-        self.c = 300e6
+        self.oversample = 10
+        self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs * self.oversample)
+        self.light_speed = 300e6
         self.wavelength = self.c / self.receiver.f_sample
         self.tx_pos = None
         self.rx_pos = None
@@ -72,7 +73,7 @@ class Radar:
         
         traj = self.trajectory(t_vec, theta)
 
-        tau = 2 / self.c * traj
+        tau = 2 / self.light_speed * traj
 
         return tau
 
