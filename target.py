@@ -2,7 +2,6 @@
     This module will generate a trajectory for the target
 """
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Target():
     """
@@ -35,9 +34,8 @@ class Target():
 
         # Spiral from region center and out:
         if method == 'spiral':
-            print("doing spiral")
             self.init_state = np.array([[1000], [1000], 
-                                        [0], [0]])
+                                        [1e-6], [1e-6]])
             k = int(k_tot/2)
             
             ax = np.block([np.cos(np.linspace(0, 2*np.pi, k)),
@@ -46,17 +44,15 @@ class Target():
                            np.sin(np.linspace(0, np.pi, k_tot - k))])
 
         # Linear, away from origin:
-        elif method == 'linear':
-            print("doing linear")
-            self.init_state = np.array([[0], [0], 
+        elif method == 'linear_away':
+            self.init_state = np.array([[1000], [1000], 
                                         [100], [100]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
 
         # Linear, towards origin:
         else:
-            print("doing default")
-            self.init_state = np.array([[2000], [2000], 
+            self.init_state = np.array([[1000], [1000], 
                                         [-100], [-100]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
