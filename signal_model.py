@@ -12,9 +12,7 @@ class Signal(Observation, System):
         Class to create a signal model from Observation and System classes
     """
 
-    def __init__(self, k_tot=10, region=[2000, 2000],
-                 m_transmitters=10, n_receivers=10,
-                 t_tx_tot=1.33e-7, t_rx=1.8734e-5):
+    def __init__(self, k_tot=10, region=2000, m_transmitters=10, n_receivers=10, t_tx_tot=1.33e-7, t_rx=1.8734e-5):
         self.k_tot = k_tot
         self.region = region
         self.m_transmitters = m_transmitters
@@ -32,7 +30,7 @@ class Signal(Observation, System):
                              self.n_receivers, self.region,
                              self._samples_per_obs, self.t_tx, self._t_obs, self._fc)
 
-        System.__init__(self, self._t_obs, self.region)
+        System.__init__(self, self._t_obs)
         self.states = System.generate_states(self, self.k_tot)
 
     def plot_region(self):
@@ -50,8 +48,8 @@ class Signal(Observation, System):
         ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
         ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
         ax.set_aspect(1)
-        ax.set_xlim(0, self.region[0])
-        ax.set_ylim(0, self.region[0])
+        ax.set_xlim(0, self.region)
+        ax.set_ylim(0, self.region)
         plt.title('Observation region with antennas and trajectory')
         plt.ylabel('y [m]')
         plt.xlabel('x [m]')
@@ -107,4 +105,4 @@ class Signal(Observation, System):
 
 if __name__ == '__main__':
     sig = Signal(10, [2000, 2000], 2, 2)
-    sig.observe_y(1, 0)
+    sig.plot_region()

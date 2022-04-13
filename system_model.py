@@ -8,9 +8,8 @@ class System():
     """
         Class to represent an oberservation
     """
-    def __init__(self, timestep : float, region : list):
+    def __init__(self, timestep : float):
         self.T = timestep
-        self.region = region
         self.F = np.block([[np.eye(2), self.T*np.eye(2)],
                            [np.zeros((2,2)), np.eye(2)]])
         self.G = np.block([[(self.T**2/2)*np.eye(2)],
@@ -50,24 +49,6 @@ class System():
                          + np.dot(self.G, np.array([[acc[0,i]],[acc[1,i]]])))
         return np.array(state)
 
-    def plot_trajectory(self, states):
-        """ Generate k states, based on acceleration.
-
-            Args:
-                states (list): States to plot
-
-            Returns:
-                no value
-        """
-        fig, ax = plt.subplots()
-        ax.scatter(states[:,0],states[:,1])
-        ax.set_aspect(1)
-        plt.xlim([0, self.region[0]])
-        plt.ylim([0, self.region[1]])
-        plt.title('Trajectory')
-        plt.ylabel('y [m]')
-        plt.xlabel('x [m]')
-        plt.show()
         
     def velocity(self, states):
         """ Calculate velocity for all states.
