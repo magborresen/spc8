@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from receiver import Receiver
 from transmitter import Transmitter
+from target import Target
 
 class Radar:
     """
@@ -29,15 +30,15 @@ class Radar:
         self.t_tot = self.observations * self.t_obs
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs)
         self.oversample = 10
-        self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs * self.oversample)
+        #self.t_vec = np.linspace(0, self.t_tot, self.observations * self.samples_per_obs * self.oversample)
         self.light_speed = 300e6
-        self.wavelength = self.c / self.receiver.f_sample
+        self.wavelength = self.light_speed / self.receiver.f_sample
         self.tx_pos = None
         self.rx_pos = None
         self.place_antennas()
         self.max_range = None
-        self.min_range = self.transmitter.t_chirp * self.c / 2
-        self.range_res = self.c / (2 * self.transmitter.bandwidth)
+        self.min_range = self.transmitter.t_chirp * self.light_speed / 2
+        self.range_res = self.light_speed / (2 * self.transmitter.bandwidth)
 
     def place_antennas(self):
         """
@@ -93,7 +94,7 @@ class Radar:
 
         return r_k
 
-    def plot_region(self):
+    def plot_region(self, states):
         """
             Plots the observation region with antenna locations and trajectory
 
@@ -104,7 +105,7 @@ class Radar:
                 no value
         """
         fig, ax = plt.subplots()
-        #ax.scatter(self.states[:,0], self.states[:,1], label="Trajectory")
+        ax.scatter(states[:,0], states[:,1], label="Trajectory")
         ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
         ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
         ax.set_aspect(1)
@@ -116,11 +117,31 @@ class Radar:
         plt.legend()
         plt.show()
 
+    def observe(self, k_obs, state):
+        """
+            Create a time vector for a specific observation, generate the Tx
+            signal and make the observation.
+
+            Args:
+                k_obs (int): Observation to start from
+
+            Returns:
+                t_vec (np.ndarray): time vector
+        """
+        t_vec = np.linspace(k_obs * self.t_tot, (k_obs + 1) * self.t_tot, self.samples_per_obs * self.oversample)
+        
+        
+        
+        return t_vec
 
 if __name__ == '__main__':
+    k_obs = 1000
     tx = Transmitter()
     rx = Receiver()
-    radar = Radar(tx, rx, 5, "tdm", 2000)
-    sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample)
-    plt.plot(radar.t_vec[0:radar.samples_per_obs], sig[0].real)
-    plt.show()
+    radar = Radar(tx, rx, k_obs, "tdm", 2000)
+        
+    target = Target(radar.t_obs)
+    states = target.generate_states(k_obs)
+    radar.plot_region(states)
+
+    t = radar.observe(1, states[0])

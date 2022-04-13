@@ -34,7 +34,8 @@ class Target():
         """
 
         # Spiral from region center and out:
-        if self.method == 'spiral':
+        if method == 'spiral':
+            print("doing spiral")
             self.init_state = np.array([[1000], [1000], 
                                         [0], [0]])
             k = int(k_tot/2)
@@ -45,16 +46,18 @@ class Target():
                            np.sin(np.linspace(0, np.pi, k_tot - k))])
 
         # Linear, away from origin:
-        elif self.method == 'linear':
+        elif method == 'linear':
+            print("doing linear")
             self.init_state = np.array([[0], [0], 
-                                        [10], [10]])
+                                        [100], [100]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
 
         # Linear, towards origin:
         else:
+            print("doing default")
             self.init_state = np.array([[2000], [2000], 
-                                        [-10], [-10]])
+                                        [-100], [-100]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
 
