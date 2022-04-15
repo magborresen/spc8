@@ -80,7 +80,7 @@ class Radar:
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
-            Calculate trajectory used for time delay tau
+            Calculate target trajectory within an acquisition period
             
             Angle A is betweeen the line-of-sight from origin to target, and
             the velocity vector of the drone. los is a unit vector
@@ -93,10 +93,13 @@ class Radar:
             Returns:
                 r_k (np.ndarray): Short time trajectory model based on original position and velocity.
         """
-
-        los = theta[:2] / np.linalg.norm(theta[:2])         
-        cos_A = (los[0]*theta[2]) + (los[1]*theta[3]) / np.linalg.norm(theta[2:])
+        # Normalized unitvector for position (line-of-sight)
+        los = theta[:2] / np.linalg.norm(theta[:2])
         
+        # Direction, as angle betweeen velocity vector and los
+        cos_A = ((los[0]*theta[2]) + (los[1]*theta[3])) / np.linalg.norm(theta[2:])
+        
+        # Target trajectory within acquisition period
         r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * np.linalg.norm(theta[2:]) * cos_A
  
         return r_k
@@ -140,16 +143,8 @@ class Radar:
             Returns:
                 t_vec (np.ndarray): time vector
         """
-        print('\nt_obs:', self.t_obs)
-        
+
         t_vec = np.linspace(k_obs * self.t_obs, (k_obs + 1) * self.t_obs, self.samples_per_obs)
-        t_tau = np.linspace(k_obs * self.t_obs, (k_obs + 1) * self.t_obs, self.n_channels)
-        
-        tau_kn = self.time_delay(theta, t_tau)
-        
-        print('\nObservation', k_obs, 'starting time:', t_vec[0])
-        print('Actual length:', np.linalg.norm(theta[:2]))
-        print('Distance (tau):', tau_kn * self.light_speed / 2)
 
         return None
 
@@ -163,11 +158,6 @@ if __name__ == '__main__':
     target = Target(radar.t_obs)
     states = target.generate_states(k_obs, 'linear_away')
     radar.plot_region(states, True)
-
-    radar.observe(0, states[0])
-    radar.observe(1, states[1])
-    radar.observe(k_obs-2, states[k_obs-2])
-    radar.observe(k_obs-1, states[k_obs-1])
 
     # radar = Radar(tx, rx, 5, "tdm", 2000)
     # sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample*radar.oversample, plot=True)
