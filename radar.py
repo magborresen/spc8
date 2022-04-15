@@ -95,12 +95,9 @@ class Radar:
         """
         # Normalized unitvector for position (line-of-sight)
         los = theta[:2] / np.linalg.norm(theta[:2])
-        
-        # Direction, as angle betweeen velocity vector and los
-        cos_A = ((los[0]*theta[2]) + (los[1]*theta[3])) / np.linalg.norm(theta[2:])
-        
+
         # Target trajectory within acquisition period
-        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * np.linalg.norm(theta[2:]) * cos_A
+        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
  
         return r_k
 
