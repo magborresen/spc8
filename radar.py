@@ -74,8 +74,8 @@ class Radar:
 
         traj = self.trajectory(t_vec, theta)
 
-        tau = 2 / self.light_speed * traj        
-        
+        tau = 2 / self.light_speed * traj
+
         return tau
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
@@ -98,7 +98,7 @@ class Radar:
 
         # Target trajectory within acquisition period
         r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
- 
+
         return r_k
 
     def plot_region(self, states, zoom=False):
