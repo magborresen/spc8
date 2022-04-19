@@ -41,11 +41,11 @@ class Receiver:
                for n_ch in range(self.channels)]
 
         # Add complex noise to signal
-        y_k = self.add_noise(x_k)
+        y_k = np.array(x_k) + np.array(self.get_noise(x_k))
 
-        return np.array(y_k)
+        return y_k
 
-    def add_noise(self, signals):
+    def get_noise(self, signals):
         """
             Add noise to received signals
 
@@ -55,6 +55,7 @@ class Receiver:
             Returns:
                 signals (np.ndarray): Received signals with added noise
         """
+        noise = []
         for signal in signals:
             samples = len(signal)
             SNR = 10.0**(self.snr/10.0)
@@ -66,6 +67,6 @@ class Receiver:
             v = np.random.normal(0, 1, size=(2, samples))
             W = v_var * v[0,:] + 1j * v_var * v[1,:]
 
-            signal = signal + W
+            noise.append(W)
             # print(10.0*np.log10(s_var/W_var), 10.0*np.log10(s_var/np.var(W)))
-        return signals
+        return noise
