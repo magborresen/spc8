@@ -37,7 +37,8 @@ class Receiver:
         """
 
         # Create received signal without noise
-        x_k = [np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig) for n_ch in range(self.channels)]
+        x_k = [np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig)
+               for n_ch in range(self.channels)]
 
         # Add complex noise to signal
         y_k = self.add_noise(x_k)
@@ -57,14 +58,14 @@ class Receiver:
         for signal in signals:
             samples = len(signal)
             SNR = 10.0**(self.snr/10.0)
-            
+
             s_var = np.var(signal)
             W_var = s_var/SNR
             v_var = np.sqrt(W_var/2)
-            
+
             v = np.random.normal(0, 1, size=(2, samples))
             W = v_var * v[0,:] + 1j * v_var * v[1,:]
-            
+
             signal = signal + W
             # print(10.0*np.log10(s_var/W_var), 10.0*np.log10(s_var/np.var(W)))
         return signals
