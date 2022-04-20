@@ -21,14 +21,13 @@ class Receiver:
         self.snr = snr
         self.channels = channels
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, w_k: np.ndarray, f_carrier: float, alpha=1+1j) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1+1j) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
             Args:
                 tau (np.ndarray): time delays between transmitter -> target -> receiver
                 tx_sig (np.ndarray): Delayed transmitted signal
-                w_k (np.ndarray): Circular symmetric gaussian noise sequence
                 f_carrier (float): Carrier frequency
                 alpha (np.ndarray or float): Complex gain of the received signal
 

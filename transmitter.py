@@ -24,34 +24,24 @@ class Transmitter:
         self.prp = prp
         self.t_chirp = t_chirp
 
-    def tx_tdm(self, t_vec, t_rx, f_sample, plot=False):
+    def tx_tdm(self, t_vec, t_rx, t0):
         """
             Transmit time division multiplexed signal
         """
 
-        tx_array = []
-        freq_array = []
-        rx_samples = int(t_rx * f_sample)
-        tx_samples = int(self.t_chirp * f_sample)
-        t_vec_sig = t_vec[0:tx_samples]
+        tx_start_times = np.linspace(t0, (self.channels-1)*(t_rx + self.t_chirp), self.channels)
+        tx_stop_times = tx_start_times + self.t_chirp
+        tx_sigs = []
 
-        for m_ch in range(self.channels):
-            tx_sig = np.zeros(t_vec.shape, dtype=np.complex128)
-            freq = np.zeros(t_vec.shape)
-            current_tx = m_ch * (tx_samples + rx_samples)
-            tx_stop = current_tx + tx_samples
-            tx_sig[current_tx:tx_stop] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * t_vec_sig**2)
-            freq[current_tx:tx_stop] = self.bandwidth / self.t_chirp * t_vec_sig
-            tx_array.append(tx_sig)
-            freq_array.append(freq)
+        for idx, t_ch in enumerate(t_vec):
+            if tx_start_times[idx] <= t_ch <= tx_stop_times[idx]:
+                tx_sig = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * t_ch**2)
+            else:
+                tx_sig = 0
 
-        tx_array = np.array(tx_array)
-        freq = np.array(freq)
+            tx_sigs.append(tx_sig)
 
-        if plot:
-            self.plot_tx(t_vec, tx_array, f_sample)
-
-        return np.array(tx_array), np.array(freq_array)
+        return np.array(tx_sigs)
 
     def plot_tx(self, t_vec, tx_sig, f_sample):
         """

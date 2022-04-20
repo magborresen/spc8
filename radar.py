@@ -39,6 +39,7 @@ class Radar:
         self.max_range = None
         self.min_range = self.transmitter.t_chirp * self.light_speed / 2
         self.range_res = self.light_speed / (2 * self.transmitter.bandwidth)
+        self.k_space = 1
 
     def place_antennas(self):
         """
@@ -58,7 +59,7 @@ class Radar:
                                             0,
                                             self.n_channels)])
 
-    def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
+    def time_delay(self, theta: np.ndarray, t0: float, t_vec: np.ndarray) -> list:
         """
             Find time delay from receiver n, to the target, to the m'th transmitters.
             It is assumed that all antennas are located in the origin of the
@@ -72,13 +73,13 @@ class Radar:
                 tau (float): Signal time delay
         """
 
-        traj = self.trajectory(t_vec, theta)
+        traj = self.trajectory(t0, t_vec, theta)
 
         tau = 2 / self.light_speed * traj
 
         return tau
 
-    def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
+    def trajectory(self, t0: float, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
             Calculate target trajectory within an acquisition period
             
@@ -97,7 +98,7 @@ class Radar:
         los = theta[:2] / np.linalg.norm(theta[:2])
 
         # Target trajectory within acquisition period
-        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+        r_k = np.linalg.norm(theta[:2]) + (t_vec - t0) * ((los[0]*theta[2]) + (los[1]*theta[3]))
 
         return r_k
 
@@ -117,7 +118,7 @@ class Radar:
         ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
         ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
         ax.set_aspect(1)
-        if zoom==True:
+        if zoom:
             ax.set_xlim(min(states[:,0]), max(states[:,0]))
             ax.set_ylim(min(states[:,1]), max(states[:,1]))
         else:
@@ -129,32 +130,69 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def observe(self, k_obs, theta):
+    def create_time_tdm(self, k_obs):
+        """
+            Create the time vector for each receive time in the observation
+
+            Args:
+                k_obs (int): The observation number to create the time vector for
+
+            Returns:
+                t_vec (list): List of rx times after each tx is done
+        """
+
+        t_vec = [np.random.uniform(
+                                   low=k_obs * self.k_space + self.transmitter.t_chirp + m_ch * self.t_obs,
+                                   high=k_obs*self.k_space + self.t_obs * (m_ch+1))
+                 for m_ch in range(self.m_channels)]
+
+        # Find the start time for this observation as reference
+        t0 = k_obs * self.k_space + self.transmitter.t_chirp
+
+        return  (t0, np.array(t_vec))
+
+
+    def observation(self, k_obs, theta):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
 
             Args:
                 k_obs (int): Observation to start from
+                theta (np.ndarray): Target position and velocity
 
             Returns:
-                t_vec (np.ndarray): time vector
+                rx_sig (list): List of tdm rx signal
         """
 
-        t_vec = np.linspace(k_obs * self.t_obs, (k_obs + 1) * self.t_obs, self.samples_per_obs)
+        # Create time vector of scalar rx times
+        t0, t_vec = self.create_time_tdm(k_obs)
 
-        return None
+        # Find the time delay between the tx -> target -> rx
+        tau = self.time_delay(theta, t0, t_vec)
+
+        # Shift the time vector for the tx signal
+        delay = t_vec - tau
+
+        # Find the originally transmitted signal
+        tx_sig = self.transmitter.tx_tdm(delay, self.t_rx, t0)
+
+        # Create the received signal
+        rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
+
+        return rx_sig
 
 if __name__ == '__main__':
-    k_obs = 10
+    k = 10
     tx = Transmitter()
     rx = Receiver()
 
-    radar = Radar(tx, rx, k_obs, "tdm", 2000)
-        
-    target = Target(radar.t_obs)
-    states = target.generate_states(k_obs, 'linear_away')
-    radar.plot_region(states, True)
+    radar = Radar(tx, rx, k, "tdm", 2000)
+
+    target = Target(radar.t_obs + radar.k_space)
+    states = target.generate_states(k, 'linear_away')
+    #radar.plot_region(states, False)
+    rx = radar.observation(0, states[0])
 
     # radar = Radar(tx, rx, 5, "tdm", 2000)
     # sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample*radar.oversample, plot=True)
