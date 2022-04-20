@@ -191,9 +191,9 @@ if __name__ == '__main__':
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
-    states = target.generate_states(k, 'linear_away')
+    target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(states, False)
-    rx = radar.observation(0, states[0])
+    rx = radar.observation(0, target_states[0])
     print(f"RX signals: {rx}")
 
     # radar = Radar(tx, rx, 5, "tdm", 2000)
