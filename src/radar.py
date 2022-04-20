@@ -3,9 +3,9 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from receiver import Receiver
-from transmitter import Transmitter
-from target import Target
+from src.receiver import Receiver
+from src.transmitter import Transmitter
+from src.target import Target
 
 class Radar:
     """
