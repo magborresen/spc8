@@ -29,15 +29,15 @@ class Transmitter:
             Transmit time division multiplexed signal
         """
 
-        tx_start_times = np.linspace(t0, (self.channels-1)*(t_rx + self.t_chirp), self.channels)
+        tx_start_times = np.linspace(t0, t0 + (self.channels-1)*(t_rx + self.t_chirp), self.channels)
         tx_stop_times = tx_start_times + self.t_chirp
         tx_sigs = []
-
+        print(f"tx start times: {tx_start_times}")
+        print(f"tx stop_times: {tx_stop_times}")
         for idx, t_ch in enumerate(t_vec):
-            if tx_start_times[idx] <= t_ch <= tx_stop_times[idx]:
-                tx_sig = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * t_ch**2)
-            else:
-                tx_sig = 0
+            tx_sig = np.zeros(t_ch.shape, dtype=np.complex128)
+            m = ((tx_start_times[idx] <= t_ch) & (t_ch <= tx_stop_times[idx]))
+            tx_sig[m] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * t_ch[m]**2)
 
             tx_sigs.append(tx_sig)
 

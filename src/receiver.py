@@ -16,7 +16,7 @@ class Receiver:
             no value
     """
 
-    def __init__(self, channels=5, f_sample=600e6, snr=30):
+    def __init__(self, channels=5, f_sample=600e6, snr=None):
         self.f_sample = f_sample
         self.snr = snr
         self.channels = channels
@@ -36,13 +36,16 @@ class Receiver:
         """
 
         # Create received signal without noise
-        x_k = [np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig)
+        x_k = [np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
                for n_ch in range(self.channels)]
 
         # Add complex noise to signal
-        y_k = np.array(x_k) + np.array(self.get_noise(x_k))
+        if self.snr:
+            y_k = np.array(x_k) + np.array(self.get_noise(x_k))
+        else:
+            y_k = x_k
 
-        return y_k
+        return np.array(y_k)
 
     def get_noise(self, signals):
         """
