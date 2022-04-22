@@ -23,3 +23,5 @@ def test_snr_value(noise, arb_sig):
     tol = 0.1
     res_dB = np.log10(np.var(arb_sig) / np.var(noise))
     assert abs(res_dB) < tol
+    
+retcode = pytest.main()
