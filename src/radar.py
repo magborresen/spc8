@@ -24,7 +24,7 @@ class Radar:
         self.region = region
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
-        self.t_rx = 14e-6
+        self.t_rx = 20e-6
         self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
         self.oversample = 10
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
@@ -145,15 +145,15 @@ class Radar:
 
         return  (t0, np.array(t_vec))
 
-    def create_time_vector(self, k_obs):
+    def create_time_vector(self):
         """
             Create a generic time vector
         """
-        t_vec = np.linspace(k_obs*(self.t_obs + self.k_space), self.t_obs*(k_obs+1), self.samples_per_obs)
+        t_vec = np.linspace(0, self.t_obs, self.samples_per_obs)
 
         return t_vec
 
-    def observation(self, k_obs, theta, plot_tx=False, plot_rx=False):
+    def observation(self, k_obs, theta, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -167,34 +167,41 @@ class Radar:
         """
 
         # Create time vector of scalar rx times
-        t_vec = self.create_time_vector(k_obs)
+        t_vec = self.create_time_vector()
 
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, t_vec[0], t_vec)
 
         # Shift the time vector for the tx signal
-        delay = t_vec - tau
+        delay = t_vec - tau[0]
+        print(tau[0])
 
         # Find the originally transmitted signal
         tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
 
-        if plot_tx:
-            self.plot_sig(t_vec, tx_sig)
-
         # Create the received signal
         rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
 
+        if plot_tx:
+            self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
+
         if plot_rx:
-            self.plot_sig(t_vec, rx_sig)
+            self.plot_sig(t_vec, rx_sig, f"RX signals for observation {k_obs}")
+
+        if plot_rx_tx:
+            self.plot_sigs(delay, tx_sig, t_vec, rx_sig, f"TX/RX signals for observation {k_obs}")
+
+        if plot_tau:
+            self.plot_tau(t_vec, tau)
 
         return rx_sig
 
-    def plot_sig(self, t_vec, sig):
+    def plot_sig(self, t_vec, sig, title):
         """
             Plot the transmitted signals over time
         """
 
-        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(15, 12), sharex=True)
+        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         axs.ravel()
 
@@ -203,7 +210,39 @@ class Radar:
             axs[idx].set_title(f"Channel: {idx}")
 
         plt.xlabel("Time [µs]")
+        fig.suptitle(title)
         plt.show()
+
+    def plot_sigs(self, t_vec1, sig1, t_vec2, sig2, title):
+        """
+            Plot the transmitted signals over time
+        """
+
+        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
+        plt.subplots_adjust(hspace=0.5)
+        axs.ravel()
+
+        for idx, m_ch in enumerate(sig1):
+            axs[idx].plot(t_vec1 / 1e-6, np.sum(sig1, axis=0).real)
+            axs[idx].set_title(f"Channel: {idx}")
+
+        for idx, m_ch in enumerate(sig2):
+            axs[idx].plot(t_vec2 / 1e-6, m_ch.real)
+
+        plt.xlabel("Time [µs]")
+        fig.suptitle(title)
+        plt.show()
+
+
+    def plot_tau(self, t_vec, tau):
+        """
+            Find tau's where the tx_signal is defined and plot
+        """
+
+        plt.plot(t_vec, tau)
+        print(tau)
+        plt.show()
+
 
 if __name__ == '__main__':
     k = 10
@@ -214,5 +253,5 @@ if __name__ == '__main__':
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
-    #radar.plot_region(states, False)
-    rx = radar.observation(0, target_states[0], plot_tx=False, plot_rx=True)
+    radar.plot_region(target_states, False)
+    rx = radar.observation(1, target_states[1], plot_rx_tx=True)

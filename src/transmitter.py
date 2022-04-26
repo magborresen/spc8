@@ -29,14 +29,13 @@ class Transmitter:
             Transmit time division multiplexed signal
         """
 
-        tx_start_times = np.linspace(t_vec[0], t_vec[0] + (self.channels-1)*(t_rx + self.t_chirp), self.channels)
+        tx_start_times = np.array([ch * (self.t_chirp + t_rx) for ch in range(self.channels)])
         tx_stop_times = tx_start_times + self.t_chirp
         tx_sigs = []
 
         for idx in range(self.channels):
             # Create an empty array for the tx signal
             tx_sig = np.zeros(t_vec.shape, dtype=np.complex128)
-
 
             # Find which times in t_vec that corresponds to transmitting with a given transmitter
             tx_times = ((tx_start_times[idx] <= t_vec) & (t_vec <= tx_stop_times[idx]))
