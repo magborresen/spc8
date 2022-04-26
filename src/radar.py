@@ -3,9 +3,9 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from src.receiver import Receiver
-from src.transmitter import Transmitter
-from src.target import Target
+from receiver import Receiver
+from transmitter import Transmitter
+from target import Target
 
 class Radar:
     """
@@ -25,7 +25,7 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 14e-6
-        self.t_obs = self.t_rx + self.transmitter.t_chirp
+        self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
         self.oversample = 10
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
@@ -138,11 +138,6 @@ class Radar:
                 t_vec (list): List of rx times after each tx is done
         """
 
-        #t_vec = [np.random.uniform(
-        #                           low=self.transmitter.t_chirp + (m_ch*self.t_obs) + k_obs*self.k_space,
-        #                           high=self.t_obs*(m_ch+1) + k_obs*self.k_space)
-        #         for m_ch in range(self.m_channels)]
-
         t_vec = [np.linspace(self.transmitter.t_chirp + (m_ch*self.t_obs) + k_obs*self.k_space, self.t_obs*(m_ch+1) + k_obs*self.k_space, self.samples_per_obs) for m_ch in range(self.m_channels)]
 
         # Find the start time for this observation as reference
@@ -150,8 +145,15 @@ class Radar:
 
         return  (t0, np.array(t_vec))
 
+    def create_time_vector(self, k_obs):
+        """
+            Create a generic time vector
+        """
+        t_vec = np.linspace(k_obs*(self.t_obs + self.k_space), self.t_obs*(k_obs+1), self.samples_per_obs)
 
-    def observation(self, k_obs, theta):
+        return t_vec
+
+    def observation(self, k_obs, theta, plot_tx=False, plot_rx=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -165,23 +167,43 @@ class Radar:
         """
 
         # Create time vector of scalar rx times
-        t0, t_vec = self.create_time_tdm(k_obs)
-        print(f"t_vec: {t_vec}")
+        t_vec = self.create_time_vector(k_obs)
+
         # Find the time delay between the tx -> target -> rx
-        tau = self.time_delay(theta, t0, t_vec)
-        print(f"tau: {tau}")
+        tau = self.time_delay(theta, t_vec[0], t_vec)
+
         # Shift the time vector for the tx signal
         delay = t_vec - tau
-        print(f"delay: {delay}")
 
         # Find the originally transmitted signal
-        tx_sig = self.transmitter.tx_tdm(delay, self.t_rx, t0)
-        print(f"TX Signals: {tx_sig}")
+        tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
+
+        if plot_tx:
+            self.plot_sig(t_vec, tx_sig)
 
         # Create the received signal
         rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
 
+        if plot_rx:
+            self.plot_sig(t_vec, rx_sig)
+
         return rx_sig
+
+    def plot_sig(self, t_vec, sig):
+        """
+            Plot the transmitted signals over time
+        """
+
+        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(15, 12), sharex=True)
+        plt.subplots_adjust(hspace=0.5)
+        axs.ravel()
+
+        for idx, m_ch in enumerate(sig):
+            axs[idx].plot(t_vec / 1e-6, m_ch.real)
+            axs[idx].set_title(f"Channel: {idx}")
+
+        plt.xlabel("Time [µs]")
+        plt.show()
 
 if __name__ == '__main__':
     k = 10
@@ -193,8 +215,4 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(states, False)
-    rx = radar.observation(0, target_states[0])
-    print(f"RX signals: {rx}")
-
-    # radar = Radar(tx, rx, 5, "tdm", 2000)
-    # sig, freq = radar.transmitter.tx_tdm(radar.t_vec[0:radar.samples_per_obs], radar.t_rx, radar.receiver.f_sample*radar.oversample, plot=True)
+    rx = radar.observation(0, target_states[0], plot_tx=False, plot_rx=True)
