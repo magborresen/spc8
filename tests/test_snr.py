@@ -1,3 +1,7 @@
+"""
+    This is a test script for function add_noise in Receiver class.
+    Running this script runs all tests in directory.
+"""
 import numpy as np
 import pytest
 from src.receiver import Receiver
