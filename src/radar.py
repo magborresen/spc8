@@ -174,7 +174,6 @@ class Radar:
 
         # Shift the time vector for the tx signal
         delay = t_vec - tau[0]
-        print(tau[0])
 
         # Find the originally transmitted signal
         tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
@@ -253,5 +252,5 @@ if __name__ == '__main__':
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
-    radar.plot_region(target_states, False)
+    #radar.plot_region(target_states, False)
     rx = radar.observation(1, target_states[1], plot_rx_tx=True)
