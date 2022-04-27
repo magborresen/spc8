@@ -1,3 +1,7 @@
+"""
+    This is a test script for function time_delay in Radar class.
+    Running this script runs all tests in directory.
+"""
 import numpy as np
 import pytest
 from src.radar import Radar
