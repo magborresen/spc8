@@ -9,9 +9,6 @@ from src.receiver import Receiver
 from src.transmitter import Transmitter
 from src.target import Target
 
-# Data types and shape, amount of signals must correspond to m_channels
-# Find a way to check time divisions
-
 @pytest.fixture
 def radar():
     tx = Transmitter()
@@ -26,6 +23,9 @@ def states(radar):
     return states
 
 def test_transmitters(radar, states):
+    """
+    This test function will test output shape and dtype of the TX signal.
+    """
     t_vec = radar.create_time_vector()
     tau = radar.time_delay(states[0], t_vec)
     delay = t_vec - tau
@@ -35,6 +35,9 @@ def test_transmitters(radar, states):
     assert tx_sig.dtype == np.complex128
 
 def test_transmission_times(radar, states):
+    """
+    This test function will test timing of the transmissions.
+    """
     tol = 1e-9
     t_vec = radar.create_time_vector()
     tau = radar.time_delay(states[0], t_vec)
@@ -52,6 +55,3 @@ def test_transmission_times(radar, states):
         
         assert np.abs(truth - times[0]) < tol
         assert np.abs(truth + radar.transmitter.t_chirp - times[-1]) < tol
-
-
-pytest.main()

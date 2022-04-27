@@ -18,14 +18,21 @@ def noise(arb_sig):
     return rx.get_noise(arb_sig)
 
 def test_output_length(noise, arb_sig):
+    """
+    This test function will test output length of the noise.
+    """
     assert np.array(arb_sig).size == np.array(noise).size
     
 def test_output_dtype(noise, arb_sig):
+    """
+    This test function will test output dtype of the noise.
+    """
     assert arb_sig[0][0].dtype == noise[0][0].dtype
     
 def test_snr_value(noise, arb_sig):
+    """
+    This test function will test the actual SNR_dB to desired SNR_dB.
+    """
     tol = 0.1
     res_dB = np.log10(np.var(arb_sig) / np.var(noise))
     assert abs(res_dB) < tol
-    
-retcode = pytest.main()

@@ -33,25 +33,15 @@ def test_values(radar, states):
     """
     # True distance for state 0
     true_0 = np.linalg.norm((states[0][0], states[0][1]))
-    # Distance from tau for state 0
-    tau_0 = radar.time_delay(states[0], np.array([0]))
-    dist_0 = tau_0 * 300e6 / 2
-    
     # True distance for state 1
     true_1 = np.linalg.norm((states[1][0], states[1][1]))
     # Very last moment for state 0 = state 1
-    last_time = np.array([0, radar.t_obs + radar.k_space])
-    #last_time = np.array([np.linspace(0, radar.t_obs + radar.k_space, 10)])
-    tau_1 = radar.time_delay(states[0], last_time)
-    dist_1 = tau_1 * 300e6 / 2
+    tau = radar.time_delay(states[0], np.array([0, radar.t_obs + radar.k_space]))
+    # Get equivivalent distance
+    dist = tau * 300e6 / 2
     
-    print('Truth:', true_0, true_1)
-    print(last_time)
-    print(dist_0,dist_1)
-    print(states)
-    
-    assert dist_0 == true_0
-    assert dist_1[1] == true_1
+    assert dist[0] == true_0 # State_k starting point
+    assert dist[1] == true_1 # State_k ending point = start in State_k+1
 
 def test_types(radar, states):
     """
@@ -59,7 +49,6 @@ def test_types(radar, states):
     """
     t_vec = np.linspace(0, radar.t_obs, radar.n_channels)
     tau = radar.time_delay(states[0], t_vec)
+    
     assert tau.size == radar.n_channels
     assert tau.dtype == np.float64
-    
-retcode = pytest.main()
