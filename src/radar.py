@@ -56,7 +56,7 @@ class Radar:
                                             0,
                                             self.n_channels)])
 
-    def time_delay(self, theta: np.ndarray, t0: float, t_vec: np.ndarray) -> list:
+    def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delay from receiver n, to the target, to the m'th transmitters.
             It is assumed that all antennas are located in the origin of the
@@ -70,16 +70,16 @@ class Radar:
                 tau (float): Signal time delay
         """
 
-        traj = self.trajectory(t0, t_vec, theta)
+        traj = self.trajectory(t_vec, theta)
 
         tau = 2 / self.light_speed * traj
 
         return tau
 
-    def trajectory(self, t0: float, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
+    def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
             Calculate target trajectory within an acquisition period
-            
+
             Angle A is betweeen the line-of-sight from origin to target, and
             the velocity vector of the drone. los is a unit vector
             representation of the line-of-sight.
@@ -89,13 +89,14 @@ class Radar:
                 theta (np.ndarray): Target position
 
             Returns:
-                r_k (np.ndarray): Short time trajectory model based on original position and velocity.
+                r_k (np.ndarray): Short time trajectory model based 
+                                  on original position and velocity.
         """
         # Normalized unitvector for position (line-of-sight)
         los = theta[:2] / np.linalg.norm(theta[:2])
 
         # Target trajectory within acquisition period
-        r_k = np.linalg.norm(theta[:2]) + (t_vec - t0) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
 
         return r_k
 
@@ -159,8 +160,13 @@ class Radar:
             signal and make the observation.
 
             Args:
-                k_obs (int): Observation to start from
-                theta (np.ndarray): Target position and velocity
+                k_obs (int): Observation to calculate the signals for.
+                theta (np.ndarray): Target position and velocity.
+                plot_tx (bool): Plot the transmitted signals.
+                plot_rx (bool): Plot the received signals.
+                plot_rx_tx (bool): Plot the received and transmitted
+                                   signals in the same figure.
+                plot_tau (bool): Plot the calculated delay over time.
 
             Returns:
                 rx_sig (list): List of tdm rx signal
@@ -170,7 +176,7 @@ class Radar:
         t_vec = self.create_time_vector()
 
         # Find the time delay between the tx -> target -> rx
-        tau = self.time_delay(theta, t_vec[0], t_vec)
+        tau = self.time_delay(theta, t_vec)
 
         # Shift the time vector for the tx signal
         delay = t_vec - tau[0]
@@ -179,7 +185,7 @@ class Radar:
         tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
 
         # Create the received signal
-        rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
+        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
 
         if plot_tx:
             self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
@@ -188,16 +194,26 @@ class Radar:
             self.plot_sig(t_vec, rx_sig, f"RX signals for observation {k_obs}")
 
         if plot_rx_tx:
-            self.plot_sigs(delay, tx_sig, t_vec, rx_sig, f"TX/RX signals for observation {k_obs}")
+            self.plot_sigs(delay, tx_sig,
+                           t_vec, rx_sig,
+                           f"TX/RX signals for observation {k_obs}")
 
         if plot_tau:
             self.plot_tau(t_vec, tau)
 
-        return rx_sig
+        return (s_sig, rx_sig)
 
     def plot_sig(self, t_vec, sig, title):
         """
             Plot the transmitted signals over time
+
+            Args:
+                t_vec (np.ndarray): Time based array for x-axis
+                sign (np.ndarray): Signal to plot
+                title (str): Title for the plot
+
+            Returns:
+                no value
         """
 
         fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
@@ -214,7 +230,17 @@ class Radar:
 
     def plot_sigs(self, t_vec1, sig1, t_vec2, sig2, title):
         """
-            Plot the transmitted signals over time
+            Plot multiple signals over time
+
+            Args:
+                t_vec1 (np.ndarray): First time vector
+                sig1 (np.ndarray): First signal to plot
+                t_vec2 (np.ndarray): Second time vector
+                sig2 (np.ndarray): Second signal to plot
+                title (str): Title of the figure
+
+            Returns:
+                no value
         """
 
         fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
@@ -235,11 +261,20 @@ class Radar:
 
     def plot_tau(self, t_vec, tau):
         """
-            Find tau's where the tx_signal is defined and plot
+            Plot the calculated delays over time
+
+            Args:
+                t_vec (np.ndarray): Time vector over which to plot tau
+                tau (np.ndarray): The delay variables over time
+
+            Returns:
+                no value
         """
 
-        plt.plot(t_vec, tau)
-        print(tau)
+        plt.plot(t_vec / 1e-6, tau)
+        plt.xlabel("Time [µs]")
+        plt.ylabel("$\tau$")
+        plt.title("$\tau$ over time")
         plt.show()
 
 
@@ -253,4 +288,4 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, False)
-    rx = radar.observation(1, target_states[1], plot_rx_tx=True)
+    s_sig, rx = radar.observation(1, target_states[1], plot_rx_tx=True)

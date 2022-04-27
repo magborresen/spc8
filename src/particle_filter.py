@@ -16,8 +16,8 @@ class ParticleFilter():
         self._t_obs = t_obs
         self.phi_hat = None
         self.alpha_hat = None
-        self.alpha = None
-        self.theta = None
+        self.alpha_est = None
+        self.theta_est = None
         self.acc = None
         self.weights = None
         self.posterior = None
@@ -32,22 +32,22 @@ class ParticleFilter():
             Returns:
                 no value
         """
-        # Initialize positions
-        p = np.random.uniform(low=0,
+        # Initialize particle positions
+        target_pos = np.random.uniform(low=0,
                               high=self.region,
                               size=(self._n_particles, 2, 1))
 
-        # Initialize velocities
-        v = np.full((self._n_particles, 2, 1), 5)
+        # Initialize particle velocities
+        target_velocity = np.full((self._n_particles, 2, 1), 5)
 
         # Concatenate to create theta
-        self.theta = np.concatenate((p, v), axis=1)
+        self.theta_est = np.concatenate((target_pos, target_velocity), axis=1)
 
         # Initialize accelerations
         self.acc = np.zeros((self._n_particles, 2, 1))
 
         # Initialize gains
-        self.alpha = np.ones((self._n_particles, 1))
+        self.alpha_est = np.ones((self._n_particles, 1))
 
     def init_weights(self):
         """
@@ -65,14 +65,14 @@ class ParticleFilter():
             Update particle parameters for the k'th observation
         """
         # Update positions
-        self.theta[:,0:2] = (self.theta[:,0:2] + self.theta[:,2:] *
+        self.theta_est[:,0:2] = (self.theta_est[:,0:2] + self.theta_est[:,2:] *
                              self._t_obs + self._t_obs**2 * self.acc / 2)
 
         # Update velocities
-        self.theta[:,2:] = self.theta[:,2:] + self._t_obs*self.acc
+        self.theta_est[:,2:] = self.theta_est[:,2:] + self._t_obs*self.acc
 
         # Update alphas
-        self.alpha = (np.transpose(sk_n) * yk_n) / np.square(np.norm(sk_n))
+        self.alpha_est = (np.transpose(sk_n) * yk_n) / np.square(np.norm(sk_n))
 
     def update_weights(self):
         """

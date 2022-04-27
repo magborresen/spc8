@@ -27,9 +27,9 @@ def states(radar):
 
 def test_transmitters(radar, states):
     t0, t_vec = radar.create_time_tdm(0)
-    tau = radar.time_delay(states[0], t0, t_vec)
+    tau = radar.time_delay(states[0], t_vec)
     delay = t_vec - tau
-    tx_sig = radar.transmitter.tx_tdm(delay, radar.t_rx, t0)
+    tx_sig = radar.transmitter.tx_tdm(delay, radar.t_rx)
     
     assert tx_sig.shape == (radar.m_channels, radar.samples_per_obs)
     assert tx_sig.dtype == np.complex128
@@ -37,9 +37,9 @@ def test_transmitters(radar, states):
 def test_transmission_times(radar, states):
     tol = 1e-9
     t0, t_vec = radar.create_time_tdm(0)
-    tau = radar.time_delay(states[0], t0, t_vec)
+    tau = radar.time_delay(states[0], t_vec)
     delay = t_vec - tau
-    tx_sig = radar.transmitter.tx_tdm(delay, radar.t_rx, t0)
+    tx_sig = radar.transmitter.tx_tdm(delay, radar.t_rx)
 
     # Looping through all transmissions
     for tx_m in range(radar.m_channels):

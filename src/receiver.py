@@ -36,16 +36,20 @@ class Receiver:
         """
 
         # Create received signal without noise
-        x_k = [np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
-               for n_ch in range(self.channels)]
+        x_k = np.array([np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
+               for n_ch in range(self.channels)])
+
+        # Create the received signal without noise and attenuation (used for PF)
+        s_k = np.array([np.sum(np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
+               for n_ch in range(self.channels)])
 
         # Add complex noise to signal
         if self.snr:
-            y_k = np.array(x_k) + np.array(self.get_noise(x_k))
+            y_k = x_k + np.array(self.get_noise(x_k))
         else:
             y_k = x_k
 
-        return np.array(y_k)
+        return (s_k, y_k)
 
     def get_noise(self, signals):
         """
