@@ -16,12 +16,13 @@ class Receiver:
             no value
     """
 
-    def __init__(self, channels=5, f_sample=600e6, snr=None):
+    def __init__(self, channels=5, f_sample=600e6, snr=90.0):
         self.f_sample = f_sample
         self.snr = snr
         self.channels = channels
+        self.sigma_noise = None
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1+1j) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1+1j, add_noise=True) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
@@ -44,7 +45,7 @@ class Receiver:
                for n_ch in range(self.channels)])
 
         # Add complex noise to signal
-        if self.snr:
+        if self.snr and add_noise:
             y_k = x_k + np.array(self.get_noise(x_k))
         else:
             y_k = x_k
@@ -66,13 +67,14 @@ class Receiver:
             samples = len(signal)
             SNR = 10.0**(self.snr/10.0)
 
-            s_var = np.var(signal)
-            W_var = s_var/SNR
-            v_var = np.sqrt(W_var/2)
+            sigma_signal = np.var(signal)
+            sigma_complex_noise = sigma_signal/SNR
+            self.sigma_noise = sigma_complex_noise
+            sigma_real_noise = np.sqrt(sigma_complex_noise/2)
 
             v = np.random.normal(0, 1, size=(2, samples))
-            W = v_var * v[0,:] + 1j * v_var * v[1,:]
+            W = sigma_real_noise * v[0,:] + 1j * sigma_real_noise * v[1,:]
 
             noise.append(W)
-            # print(10.0*np.log10(s_var/W_var), 10.0*np.log10(s_var/np.var(W)))
+
         return noise

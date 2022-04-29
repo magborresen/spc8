@@ -37,6 +37,7 @@ class Radar:
         self.min_range = self.transmitter.t_chirp * self.light_speed / 2
         self.range_res = self.light_speed / (2 * self.transmitter.bandwidth)
         self.k_space = 1
+        self.t_vec = self.create_time_vector()
 
     def place_antennas(self):
         """
@@ -154,7 +155,7 @@ class Radar:
 
         return t_vec
 
-    def observation(self, k_obs, theta, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
+    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -172,34 +173,31 @@ class Radar:
                 rx_sig (list): List of tdm rx signal
         """
 
-        # Create time vector of scalar rx times
-        t_vec = self.create_time_vector()
-
         # Find the time delay between the tx -> target -> rx
-        tau = self.time_delay(theta, t_vec)
+        tau = self.time_delay(theta, self.t_vec)
 
         # Shift the time vector for the tx signal
-        delay = t_vec - tau[0]
+        delay = self.t_vec - tau[0]
 
         # Find the originally transmitted signal
         tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
 
         # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier)
+        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         if plot_tx:
             self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
 
         if plot_rx:
-            self.plot_sig(t_vec, rx_sig, f"RX signals for observation {k_obs}")
+            self.plot_sig(self.t_vec, rx_sig, f"RX signals for observation {k_obs}")
 
         if plot_rx_tx:
             self.plot_sigs(delay, tx_sig,
-                           t_vec, rx_sig,
+                           self.t_vec, rx_sig,
                            f"TX/RX signals for observation {k_obs}")
 
         if plot_tau:
-            self.plot_tau(t_vec, tau)
+            self.plot_tau(self.t_vec, tau)
 
         return (s_sig, rx_sig)
 
@@ -280,12 +278,12 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter()
-    rx = Receiver()
+    tx = Transmitter(channels=2)
+    rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, False)
-    s_sig, rx = radar.observation(1, target_states[1], plot_rx_tx=True)
+    s, rx = radar.observation(1, target_states[1], plot_tx=True)

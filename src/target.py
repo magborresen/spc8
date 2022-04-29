@@ -13,6 +13,7 @@ class Target():
                            [np.zeros((2,2)), np.eye(2)]])
         self.G = np.block([[(self.T**2/2)*np.eye(2)],
                            [self.T*np.eye(2)]])
+        self.init_state = None
 
     def acceleration(self, k_tot : int, method):
         """ 
