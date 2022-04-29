@@ -132,6 +132,12 @@ class Radar:
     def create_time_vector(self):
         """
             Create a generic time vector
+
+            Args:
+                no value
+
+            Returns:
+                t_vec (np.ndarray): Array containing sample times
         """
         t_vec = np.linspace(0, self.t_obs, self.samples_per_obs)
 
