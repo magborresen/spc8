@@ -129,24 +129,6 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def create_time_tdm(self, k_obs):
-        """
-            Create the time vector for each receive time in the observation
-
-            Args:
-                k_obs (int): The observation number to create the time vector for
-
-            Returns:
-                t_vec (list): List of rx times after each tx is done
-        """
-
-        t_vec = [np.linspace(self.transmitter.t_chirp + (m_ch*self.t_obs) + k_obs*self.k_space, self.t_obs*(m_ch+1) + k_obs*self.k_space, self.samples_per_obs) for m_ch in range(self.m_channels)]
-
-        # Find the start time for this observation as reference
-        t0 = k_obs * self.k_space
-
-        return  (t0, np.array(t_vec))
-
     def create_time_vector(self):
         """
             Create a generic time vector
