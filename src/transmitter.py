@@ -26,7 +26,7 @@ class Transmitter:
         self.mult = mult
         self.chirps = 2
 
-    def tx_tdm(self, t_vec, tau):
+    def tx_tdm(self, tau_vec):
         """
             Transmit time division multiplexed signal
         """
@@ -35,6 +35,7 @@ class Transmitter:
         tx_sigs = []
         
         for tx in range(self.channels):
+            t_vec = tau_vec[tx]
             # Create an empty array for the tx signal
             tx_sig = np.zeros(t_vec.shape, dtype=np.complex128)
             

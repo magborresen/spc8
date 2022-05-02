@@ -68,21 +68,18 @@ class Radar:
                 t_vec  (np.ndarray): Times for which to calculate the delays
 
             Returns:
-                tau (float): Signal time delay
+                tau (np.ndarray): Signals time delay
         """
 
         traj = self.trajectory(t_vec, theta)
-        
+
         tau = []
-        for rx_n in range(self.n_channels):
-            for tx_m in range(self.m_channels):
+        for tx_m in range(self.m_channels):
+            for rx_n in range(self.n_channels):
                 d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
                 d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
-
                 tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
                 tau.append(tau_kmn)
-
-        print(np.array(tau).shape)
 
         return np.array(tau)
 
@@ -107,7 +104,6 @@ class Radar:
 
         # Target trajectory within acquisition period
         r_k = theta[:2] + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
-        #r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
 
         return r_k
 
@@ -173,13 +169,22 @@ class Radar:
 
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, self.t_vec)
+        tau_vec = tau
         tau = tau[0]
 
         # Shift the time vector for the tx signal
         delay = self.t_vec - tau[0]
+        
+        delays = []
+        for tx_m in range(self.m_channels):
+            tau_km = tau_vec[tx_m * self.n_channels]
+            delay_km = self.t_vec - tau_km[0]
+            delays.append(delay_km)
+        delays = np.array(delays)
+        delay = delay_km
 
         # Find the originally transmitted signal
-        tx_sig = self.transmitter.tx_tdm(self.t_vec, tau)
+        tx_sig = self.transmitter.tx_tdm(delays)
 
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
@@ -274,7 +279,6 @@ class Radar:
         plt.title("$\tau$ over time")
         plt.show()
 
-
 if __name__ == '__main__':
     k = 10
     tx = Transmitter(channels=2)
@@ -284,6 +288,6 @@ if __name__ == '__main__':
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
-    #radar.plot_region(target_states, False)
+    #radar.plot_region(target_states, True)
     radar.observation(1, target_states[1], plot_rx_tx=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)

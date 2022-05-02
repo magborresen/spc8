@@ -36,6 +36,8 @@ class Receiver:
                 y_k (np.ndarray): Received signals for the oberservation
         """
 
+        tx_tot = tx_sig.shape[0] # Number of transmitters
+
         # Create received signal without noise
         x_k = np.array([np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
                for n_ch in range(self.channels)])
