@@ -26,7 +26,7 @@ class Radar:
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
         self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
-        self.oversample = 10
+        self.oversample = 1
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
         self.wavelength = self.light_speed / self.receiver.f_sample
@@ -143,7 +143,7 @@ class Radar:
 
         return t_vec
 
-    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
+    def observation(self, k_obs, theta, alpha=1+1j, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -164,14 +164,14 @@ class Radar:
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, self.t_vec)
 
-        # Shift the time vector for the tx signal
+        # Shift the time vector for the tx signals
         delay = self.t_vec - tau[0]
 
-        # Find the originally transmitted signal
+        # Find the originally transmitted signals
         tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
 
-        # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
+        # Create the received signals
+        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, alpha=alpha, add_noise=add_noise)
 
         if plot_tx:
             self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
