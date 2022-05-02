@@ -72,10 +72,19 @@ class Radar:
         """
 
         traj = self.trajectory(t_vec, theta)
+        
+        tau = []
+        for rx_n in range(self.n_channels):
+            for tx_m in range(self.m_channels):
+                d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
+                d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
 
-        tau = 2 / self.light_speed * traj
+                tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
+                tau.append(tau_kmn)
 
-        return tau
+        print(np.array(tau).shape)
+
+        return np.array(tau)
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
@@ -97,7 +106,8 @@ class Radar:
         los = theta[:2] / np.linalg.norm(theta[:2])
 
         # Target trajectory within acquisition period
-        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+        r_k = theta[:2] + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+        #r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
 
         return r_k
 
@@ -163,7 +173,8 @@ class Radar:
 
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, self.t_vec)
-        print(tau[0])
+        tau = tau[0]
+
         # Shift the time vector for the tx signal
         delay = self.t_vec - tau[0]
 
@@ -266,7 +277,7 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=3)
+    tx = Transmitter(channels=2)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
