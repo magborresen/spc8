@@ -24,27 +24,33 @@ class Transmitter:
         self.prp = prp
         self.t_chirp = t_chirp
         self.mult = mult
+        self.chirps = 2
 
-    def tx_tdm(self, t_vec, t_rx):
+    def tx_tdm(self, t_vec, tau):
         """
             Transmit time division multiplexed signal
         """
-
-        tx_start_times = np.array([ch * (self.t_chirp + t_rx) for ch in range(self.channels)])
-        tx_stop_times = tx_start_times + self.t_chirp
+        
+        start_times = np.array([[(self.t_chirp*tx) + self.t_chirp*self.channels*chirp for chirp in range(self.chirps)] for tx in range(self.channels)])
         tx_sigs = []
-
-        for idx in range(self.channels):
+        
+        for tx in range(self.channels):
             # Create an empty array for the tx signal
             tx_sig = np.zeros(t_vec.shape, dtype=np.complex128)
+            
+            for chirp in range(self.chirps):
+                # Find which times in t_vec that corresponds to transmitting with a given transmitter    
+                tx_times = ((start_times[tx][chirp] <= t_vec) & (t_vec <= self.t_chirp + start_times[tx][chirp]))
 
-            # Find which times in t_vec that corresponds to transmitting with a given transmitter
-            tx_times = ((tx_start_times[idx] <= t_vec) & (t_vec <= tx_stop_times[idx]))
+                # Create the chirp at the transmitter times
+                tx_sig[tx_times] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * (t_vec[tx_times]-t_vec[tx_times][0])**2)
 
-            # Create the chirp at the transmitter times
-            tx_sig[tx_times] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * (t_vec[tx_times]-t_vec[tx_times][0])**2)
             tx_sigs.append(tx_sig)
-
+                
+        for i in range(self.channels):
+            plt.plot(t_vec*1e6, tx_sigs[i].real, label=f'Tx {i}')
+        plt.legend()
+       
         return np.array(tx_sigs)
 
     def plot_tx(self, t_vec, tx_sig, f_sample):

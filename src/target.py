@@ -35,7 +35,7 @@ class Target():
 
         # Spiral from region center and out:
         if method == 'spiral':
-            self.init_state = np.array([[1000], [1000],
+            self.init_state = np.array([[100], [100],
                                         [16], [16]])
             k = int(k_tot/2)
             
@@ -46,14 +46,14 @@ class Target():
 
         # Linear, away from origin:
         elif method == 'linear_away':
-            self.init_state = np.array([[1000], [1000],
+            self.init_state = np.array([[100], [100],
                                         [16], [16]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
 
         # Linear, towards origin:
         else:
-            self.init_state = np.array([[1000], [1000],
+            self.init_state = np.array([[100], [100],
                                         [-16], [-16]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))

@@ -26,7 +26,7 @@ class Radar:
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
         self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
-        self.oversample = 10
+        self.oversample = 1
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
         self.wavelength = self.light_speed / self.receiver.f_sample
@@ -163,12 +163,12 @@ class Radar:
 
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, self.t_vec)
-
+        print(tau[0])
         # Shift the time vector for the tx signal
         delay = self.t_vec - tau[0]
 
         # Find the originally transmitted signal
-        tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
+        tx_sig = self.transmitter.tx_tdm(self.t_vec, tau)
 
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
@@ -181,8 +181,8 @@ class Radar:
 
         if plot_rx_tx:
             self.plot_sigs(delay, tx_sig,
-                           self.t_vec, rx_sig,
-                           f"TX/RX signals for observation {k_obs}")
+                            self.t_vec, rx_sig,
+                            f"TX/RX signals for observation {k_obs}")
 
         if plot_tau:
             self.plot_tau(self.t_vec, tau)
@@ -266,7 +266,7 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2)
+    tx = Transmitter(channels=3)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
@@ -274,4 +274,5 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, False)
-    s, rx = radar.observation(1, target_states[1], plot_tx=True)
+    radar.observation(1, target_states[1], plot_rx_tx=True)
+    # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
