@@ -25,7 +25,7 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
-        self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
+        self.t_obs = self.transmitter.t_chirp*self.m_channels*self.transmitter.chirps
         self.oversample = 1
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
@@ -189,9 +189,7 @@ class Radar:
                 theta (np.ndarray): Target position and velocity.
                 plot_tx (bool): Plot the transmitted signals.
                 plot_rx (bool): Plot the received signals.
-                plot_rx_tx (bool): Plot the received and transmitted
-                                   signals in the same figure.
-                plot_tau (bool): Plot the calculated delay over time.
+                plot_tau (bool): Plot the calculated delays over time.
 
             Returns:
                 rx_sig (list): List of tdm rx signal
@@ -208,12 +206,11 @@ class Radar:
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
+        # Plotters
         if plot_tx:
             self.plot_sig(tx_sig_nd, f"TX signals for observation {k_obs}")
-
         if plot_rx:
             self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
-
         if plot_tau:
             self.plot_tau(tau_vec)
 
@@ -224,8 +221,7 @@ class Radar:
             Plot the transmitted signals over time
 
             Args:
-                t_vec (np.ndarray): Time based array for x-axis
-                sign (np.ndarray): Signal to plot
+                sig (np.ndarray): Collection of signal to plot
                 title (str): Title for the plot
 
             Returns:
@@ -235,13 +231,11 @@ class Radar:
         fig, axs = plt.subplots(nrows=min(self.m_channels, maxItr), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         axs.ravel()
-
         for idx, m_ch in enumerate(sig):
             axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
             if idx == maxItr-1: 
                 break
-
         plt.xlabel("Time [µs]")
         fig.suptitle(title)
         plt.tight_layout()
@@ -252,8 +246,7 @@ class Radar:
             Plot the calculated delays over time
 
             Args:
-                t_vec (np.ndarray): Time vector over which to plot tau
-                tau (np.ndarray): The delay variables over time
+                tau_vec (np.ndarray): Collection of time delays over time
 
             Returns:
                 no value
@@ -261,7 +254,6 @@ class Radar:
 
         for idx, tau in enumerate(tau_vec):
             plt.plot(self.t_vec / 1e-6, self.light_speed * tau / 2, label=f'\u03C4$_{idx}$')
-
         plt.legend()
         plt.xlabel("Time [µs]")
         plt.ylabel("Range [m]")
@@ -270,8 +262,8 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2)
-    rx = Receiver(channels=2)
+    tx = Transmitter(channels=3, t_chirp=30e-6, chirps=2)
+    rx = Receiver(channels=3, snr=None)
 
     radar = Radar(tx, rx, "tdm", 2000)
 

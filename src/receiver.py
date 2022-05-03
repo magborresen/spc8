@@ -20,37 +20,42 @@ class Receiver:
         self.f_sample = f_sample
         self.snr = snr
         self.channels = channels
-        self.sigma_noise = None
+        self.sigma_noise = snr
 
     def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1+1j, add_noise=True) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
             Args:
-                tau (np.ndarray): time delays between transmitter -> target -> receiver
-                tx_sig (np.ndarray): Delayed transmitted signal
+                tau (np.ndarray): Collection of time delays between transmitter -> target -> receiver
+                tx_sig (np.ndarray): Collection of delayed transmitted signals
                 f_carrier (float): Carrier frequency
                 alpha (np.ndarray or float): Complex gain of the received signal
 
             Returns:
-                y_k (np.ndarray): Received signals for the oberservation
+                y_k (np.ndarray): Collection of received signals for the oberservation
         """
         x_k = []
         s_k = []
-        idx = 0
+        tau_idx = 0
         for n_ch in range(self.channels):
+            # Set signals to 0
             sig_x = 0
             sig_s = 0
+            
             for m_ch in range(tx_sig.shape[0]):
                 # Calculate clean signal for antenna pair
-                sig = np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
+                sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
                 # Iterate signal with noise
                 sig_x += alpha * sig
                 # Iterate signal without noise
                 sig_s += sig
-                idx += 1  
+                # Iterate tau counter
+                tau_idx += 1  
+            
             x_k.append(sig_x)
             s_k.append(sig_s)  
+        
         x_k = np.array(x_k)
         s_k = np.array(s_k)
 
