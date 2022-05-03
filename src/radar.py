@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
-from audioop import add
 
 class Radar:
     """
@@ -199,7 +198,6 @@ class Radar:
 
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
-        tau = tau_vec[0]
 
         # Find the originally transmitted signal
         tx_sig_nd = self.transmitter.tx_tdm(self.t_vec)
@@ -208,7 +206,7 @@ class Radar:
         tx_sig = self.delay_signal(tx_sig_nd, tau_vec)
         
         # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
+        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         if plot_tx:
             self.plot_sig(self.t_vec, tx_sig_nd, f"TX signals for observation {k_obs}")
@@ -223,8 +221,6 @@ class Radar:
 
         if plot_tau:
             self.plot_tau(self.t_vec, tau)
-            
-        
 
         return (s_sig, rx_sig)
 

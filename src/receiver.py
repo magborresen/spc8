@@ -38,13 +38,55 @@ class Receiver:
 
         tx_tot = tx_sig.shape[0] # Number of transmitters
 
+        rx_sig = []
+        tau_idx = 0
+        for n_ch in range(self.channels):
+            sig = 0
+            for m_ch in range(tx_tot):
+                print(m_ch, n_ch, tau_idx)
+                sig += alpha * np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
+                tau_idx += 1
+            rx_sig.append(sig)
+        rx_sig = np.array(rx_sig)
+        
+        
+        
+        # idx = 0
+        # sig = 0
+        # test = []
+        # for m_ch in range(tx_tot):
+            
+        #     for n_ch in range(self.channels):
+                
+        #         sig += alpha * np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
+        #         idx += 1
+                
+        #     test.append(sig)
+        #     sig = 0
+            
+        # rx_sig = np.array(test)
+        
+        # m_ch = 0
+        # test = []
+        # for idx, _ in enumerate(tau):
+        #     sig = 0
+        #     while m_ch <= tx_tot:
+        #         sig += alpha * np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
+        #     test.append(sig)
+        #     m_ch += 1
+        # rx_sig = np.array(test)
+
+        # print('Signal shape:', rx_sig.shape)
+
         # Create received signal without noise
-        x_k = np.array([np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
-               for n_ch in range(self.channels)])
+        # x_k = np.array([np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
+        #        for n_ch in range(self.channels)])
+        x_k = rx_sig
 
         # Create the received signal without noise and attenuation (used for PF)
-        s_k = np.array([np.sum(np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
-               for n_ch in range(self.channels)])
+        # s_k = np.array([np.sum(np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
+        #        for n_ch in range(self.channels)])
+        s_k = x_k
 
         # Add complex noise to signal
         if self.snr and add_noise:
