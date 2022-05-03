@@ -33,7 +33,7 @@ class Transmitter:
         
         start_times = np.array([[(self.t_chirp*tx) + self.t_chirp*self.channels*chirp for chirp in range(self.chirps)] for tx in range(self.channels)])
         tx_sigs = []
-        print(start_times)
+        #print(start_times)
         for tx in range(self.channels):
             #t_vec = tau_vec[tx]
             # Create an empty array for the tx signal
@@ -42,15 +42,15 @@ class Transmitter:
             for chirp in range(self.chirps):
                 # Find which times in t_vec that corresponds to transmitting with a given transmitter    
                 tx_times = ((start_times[tx][chirp] <= t_vec) & (t_vec <= self.t_chirp + start_times[tx][chirp]))
-                print(t_vec[tx_times][0], t_vec[tx_times][-1])
+                #print(t_vec[tx_times][0], t_vec[tx_times][-1])
                 # Create the chirp at the transmitter times
                 tx_sig[tx_times] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * (t_vec[tx_times]-t_vec[tx_times][0])**2)
 
             tx_sigs.append(tx_sig)
                 
-        for i in range(self.channels):
-            plt.plot(t_vec*1e6, tx_sigs[i].real, label=f'Tx {i}')
-        plt.legend()
+        # for i in range(self.channels):
+        #     plt.plot(t_vec*1e6, tx_sigs[i].real, label=f'Tx {i}')
+        # plt.legend()
        
         return np.array(tx_sigs)
 

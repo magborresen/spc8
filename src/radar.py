@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
+from audioop import add
 
 class Radar:
     """
@@ -149,6 +150,35 @@ class Radar:
 
         return t_vec
 
+    def delay_signal_og(self, sig, offset):
+        
+        timestep = self.t_vec[1]
+        delay = int(round(offset / timestep))
+        
+        if delay >= 0:
+            output = np.r_[np.full(delay, 0), sig[:-delay]]
+        else:
+            output = np.r_[sig[-delay:], np.full(-delay, 0)]
+                
+        return output
+    
+    def delay_signal(self, sig_vec, tau_vec):
+        output_vec = []
+        for idx, _ in enumerate(sig_vec):
+            sig = sig_vec[idx]
+            offset = tau_vec[idx * self.n_channels][0]
+            timestep = self.t_vec[1]
+            delay = int(round(offset / timestep))
+            
+            if delay >= 0:
+                output = np.r_[np.full(delay, 0), sig[:-delay]]
+            else:
+                output = np.r_[sig[-delay:], np.full(-delay, 0)]
+            output_vec.append(output)
+        
+        return np.array(output_vec)
+    
+
     def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
         """
             Create a time vector for a specific observation, generate the Tx
@@ -168,24 +198,26 @@ class Radar:
         """
 
         # Find the time delay between the tx -> target -> rx
-        tau = self.time_delay(theta, self.t_vec)
-
-        tau = tau[0]
+        tau_vec = self.time_delay(theta, self.t_vec)
+        tau = tau_vec[0]
 
         # Find the originally transmitted signal
-        tx_sig = self.transmitter.tx_tdm(self.t_vec)
-
+        tx_sig_nd = self.transmitter.tx_tdm(self.t_vec)
+        
+        # Delay the originally transmitted signal
+        tx_sig = self.delay_signal(tx_sig_nd, tau_vec)
+        
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         if plot_tx:
-            self.plot_sig(self.t_vec, tx_sig, f"TX signals for observation {k_obs}")
+            self.plot_sig(self.t_vec, tx_sig_nd, f"TX signals for observation {k_obs}")
 
         if plot_rx:
             self.plot_sig(self.t_vec, rx_sig, f"RX signals for observation {k_obs}")
 
         if plot_rx_tx:
-            self.plot_sigs(self.t_vec, tx_sig,
+            self.plot_sigs(self.t_vec, tx_sig_nd,
                             self.t_vec, rx_sig,
                             f"TX/RX signals for observation {k_obs}")
 
@@ -280,5 +312,5 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], plot_rx_tx=True, plot_tx=True, plot_rx=True)
+    radar.observation(1, target_states[1], plot_rx_tx=False, plot_tx=True, plot_rx=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
