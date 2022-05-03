@@ -59,23 +59,22 @@ class Radar:
 
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
-            Find time delay from receiver n, to the target, to the m'th transmitters.
-            It is assumed that all antennas are located in the origin of the
-            coordinate system.
+            Find time delays from receiver each n, to the target, and back to 
+            every transmitter.
 
             Args:
-                theta (np.ndarray): x and y position of the target
+                theta (np.ndarray): Target state at observation k
                 t_vec  (np.ndarray): Times for which to calculate the delays
 
             Returns:
-                tau (np.ndarray): Signals time delay
+                tau (np.ndarray): Collection of time delay signals
         """
 
         traj = self.trajectory(t_vec, theta)
 
         tau = []
-        for tx_m in range(self.m_channels):
-            for rx_n in range(self.n_channels):
+        for rx_n in range(self.n_channels):
+            for tx_m in range(self.m_channels):
                 d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
                 d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
                 tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
@@ -151,7 +150,9 @@ class Radar:
     
     def delay_signal(self, sig_vec, tau_vec):
         """
-            Delay a list of signals, given a list of time-delays
+            Delay a list of signals, given a list of time-delays. A entire
+            transmitted signal is delayed by the first corresponding tau. It
+            is assumed that the target does not move within t_obs.
 
             Args:
                 sig_vec (np.ndarray): Collection of signals
@@ -162,17 +163,14 @@ class Radar:
         """
         output_vec = []
         for idx, sig in enumerate(sig_vec):
-            # Get offset in seconds, based on first tau in each transmission
+            # Get offset in seconds, based on first tau from each transmitter
             offset = tau_vec[idx * self.n_channels][0]
             
             # Get delay in number of samples
-            delay = int(round(offset / self.t_vec[1]))
+            delay = round(offset / self.t_vec[1])
             
-            # Delay signal by desired number of samples
-            if delay >= 0:
-                output = np.r_[np.full(delay, 0), sig[:-delay]]
-            else:
-                output = np.r_[sig[-delay:], np.full(-delay, 0)]
+            # Delay signal by desired number of samples (pad with 0)
+            output = np.r_[np.full(delay, 0), sig[:-delay]]
                 
             output_vec.append(output)
         
@@ -200,11 +198,15 @@ class Radar:
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig_nd = self.transmitter.tx_tdm(self.t_vec)
         
-        # Delay the originally transmitted signal (starting at tau_m[0])
+        # Delay the originally transmitted signal (starting at tau)
         tx_sig = self.delay_signal(tx_sig_nd, tau_vec)
         
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
+
+        # Mix signals
+        output = rx_sig * sum(tx_sig)
+        self.plot_sig(output, f"Mixed signals for observation {k_obs}")
 
         # Plotters
         if plot_tx:
@@ -227,14 +229,14 @@ class Radar:
             Returns:
                 no value
         """
-        maxItr = 5
-        fig, axs = plt.subplots(nrows=min(self.m_channels, maxItr), ncols=1, figsize=(8, 5), sharex=True)
+        maxPlots = 5
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         axs.ravel()
         for idx, m_ch in enumerate(sig):
             axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
-            if idx == maxItr-1: 
+            if idx == maxPlots-1: 
                 break
         plt.xlabel("Time [µs]")
         fig.suptitle(title)
@@ -263,12 +265,12 @@ class Radar:
 if __name__ == '__main__':
     k = 10
     tx = Transmitter(channels=3, t_chirp=30e-6, chirps=2)
-    rx = Receiver(channels=3, snr=None)
+    rx = Receiver(channels=3, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], plot_tx=True, plot_rx=True)
+    radar.observation(1, target_states[1], add_noise=False, plot_tx=True, plot_rx=False)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)

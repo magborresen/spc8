@@ -35,9 +35,12 @@ class Receiver:
             Returns:
                 y_k (np.ndarray): Collection of received signals for the oberservation
         """
+
+        # Get received signals
         x_k = []
         s_k = []
         tau_idx = 0
+        
         for n_ch in range(self.channels):
             # Set signals to 0
             sig_x = 0
@@ -46,9 +49,9 @@ class Receiver:
             for m_ch in range(tx_sig.shape[0]):
                 # Calculate clean signal for antenna pair
                 sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
-                # Iterate signal with noise
+                # Iterate signal with gain
                 sig_x += alpha * sig
-                # Iterate signal without noise
+                # Iterate signal without gain
                 sig_s += sig
                 # Iterate tau counter
                 tau_idx += 1  
