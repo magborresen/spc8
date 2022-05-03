@@ -37,25 +37,20 @@ class Receiver:
         """
         x_k = []
         s_k = []
-
         idx = 0
-        n_ch = 0
-        while n_ch < self.channels:
+        for n_ch in range(self.channels):
             sig_x = 0
             sig_s = 0
-            m_ch = 0
-            while m_ch < tx_sig.shape[0]:
+            for m_ch in range(tx_sig.shape[0]):
                 # Calculate clean signal for antenna pair
                 sig = np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
                 # Iterate signal with noise
                 sig_x += alpha * sig
                 # Iterate signal without noise
                 sig_s += sig
-                m_ch += 1
                 idx += 1  
             x_k.append(sig_x)
-            s_k.append(sig_s)
-            n_ch += 1    
+            s_k.append(sig_s)  
         x_k = np.array(x_k)
         s_k = np.array(s_k)
 

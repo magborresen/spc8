@@ -179,7 +179,7 @@ class Radar:
         return np.array(output_vec)
     
 
-    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
+    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -209,22 +209,17 @@ class Radar:
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         if plot_tx:
-            self.plot_sig(self.t_vec, tx_sig_nd, f"TX signals for observation {k_obs}")
+            self.plot_sig(tx_sig_nd, f"TX signals for observation {k_obs}")
 
         if plot_rx:
-            self.plot_sig(self.t_vec, rx_sig, f"RX signals for observation {k_obs}")
+            self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
 
-        if plot_rx_tx:
-            self.plot_sigs(self.t_vec, tx_sig_nd,
-                            self.t_vec, rx_sig,
-                            f"TX/RX signals for observation {k_obs}")
-
-        # if plot_tau:
-        #     self.plot_tau(self.t_vec, tau)
+        if plot_tau:
+            self.plot_tau(tau_vec)
 
         return (s_sig, rx_sig)
 
-    def plot_sig(self, t_vec, sig, title):
+    def plot_sig(self, sig, title):
         """
             Plot the transmitted signals over time
 
@@ -236,51 +231,23 @@ class Radar:
             Returns:
                 no value
         """
-
-        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
+        maxItr = 5
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxItr), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         axs.ravel()
 
         for idx, m_ch in enumerate(sig):
-            axs[idx].plot(t_vec / 1e-6, m_ch.real)
+            axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
+            if idx == maxItr-1: 
+                break
 
         plt.xlabel("Time [µs]")
         fig.suptitle(title)
+        plt.tight_layout()
         plt.show()
 
-    def plot_sigs(self, t_vec1, sig1, t_vec2, sig2, title):
-        """
-            Plot multiple signals over time
-
-            Args:
-                t_vec1 (np.ndarray): First time vector
-                sig1 (np.ndarray): First signal to plot
-                t_vec2 (np.ndarray): Second time vector
-                sig2 (np.ndarray): Second signal to plot
-                title (str): Title of the figure
-
-            Returns:
-                no value
-        """
-
-        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
-        plt.subplots_adjust(hspace=0.5)
-        axs.ravel()
-
-        for idx, m_ch in enumerate(sig1):
-            axs[idx].plot(t_vec1 / 1e-6, np.sum(sig1, axis=0).real)
-            axs[idx].set_title(f"Channel: {idx}")
-
-        for idx, m_ch in enumerate(sig2):
-            axs[idx].plot(t_vec2 / 1e-6, m_ch.real)
-
-        plt.xlabel("Time [µs]")
-        fig.suptitle(title)
-        plt.show()
-
-
-    def plot_tau(self, t_vec, tau):
+    def plot_tau(self, tau_vec):
         """
             Plot the calculated delays over time
 
@@ -292,21 +259,24 @@ class Radar:
                 no value
         """
 
-        plt.plot(t_vec / 1e-6, tau)
+        for idx, tau in enumerate(tau_vec):
+            plt.plot(self.t_vec / 1e-6, self.light_speed * tau / 2, label=f'\u03C4$_{idx}$')
+
+        plt.legend()
         plt.xlabel("Time [µs]")
-        plt.ylabel("$\tau$")
-        plt.title("$\tau$ over time")
+        plt.ylabel("Range [m]")
+        plt.title("\u03C4 converted into range over time")
         plt.show()
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=3)
-    rx = Receiver(channels=3)
+    tx = Transmitter(channels=2)
+    rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
-    target_states = target.generate_states(k, 'linear_way')
+    target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], plot_rx_tx=False, plot_tx=True, plot_rx=True)
+    radar.observation(1, target_states[1], plot_tx=True, plot_rx=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
