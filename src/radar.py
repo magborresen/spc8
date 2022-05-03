@@ -169,39 +169,30 @@ class Radar:
 
         # Find the time delay between the tx -> target -> rx
         tau = self.time_delay(theta, self.t_vec)
-        tau_vec = tau
+
         tau = tau[0]
 
-        # Shift the time vector for the tx signal
-        delay = self.t_vec - tau[0]
-        
-        delays = []
-        for tx_m in range(self.m_channels):
-            tau_km = tau_vec[tx_m * self.n_channels]
-            delay_km = self.t_vec - tau_km[0]
-            delays.append(delay_km)
-        delays = np.array(delays)
-        delay = delay_km
-
         # Find the originally transmitted signal
-        tx_sig = self.transmitter.tx_tdm(delays)
+        tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         if plot_tx:
-            self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
+            self.plot_sig(self.t_vec, tx_sig, f"TX signals for observation {k_obs}")
 
         if plot_rx:
             self.plot_sig(self.t_vec, rx_sig, f"RX signals for observation {k_obs}")
 
         if plot_rx_tx:
-            self.plot_sigs(delay, tx_sig,
+            self.plot_sigs(self.t_vec, tx_sig,
                             self.t_vec, rx_sig,
                             f"TX/RX signals for observation {k_obs}")
 
         if plot_tau:
             self.plot_tau(self.t_vec, tau)
+            
+        
 
         return (s_sig, rx_sig)
 
@@ -289,5 +280,5 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], plot_rx_tx=True)
+    radar.observation(1, target_states[1], plot_rx_tx=True, plot_tx=True, plot_rx=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)

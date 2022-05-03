@@ -16,7 +16,7 @@ class Receiver:
             no value
     """
 
-    def __init__(self, channels=5, f_sample=40e6, snr=None):
+    def __init__(self, channels=5, f_sample=80e6, snr=None):
         self.f_sample = f_sample
         self.snr = snr
         self.channels = channels
