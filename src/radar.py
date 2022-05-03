@@ -148,31 +148,32 @@ class Radar:
         t_vec = np.linspace(0, self.t_obs, self.samples_per_obs)
 
         return t_vec
-
-    def delay_signal_og(self, sig, offset):
-        
-        timestep = self.t_vec[1]
-        delay = int(round(offset / timestep))
-        
-        if delay >= 0:
-            output = np.r_[np.full(delay, 0), sig[:-delay]]
-        else:
-            output = np.r_[sig[-delay:], np.full(-delay, 0)]
-                
-        return output
     
     def delay_signal(self, sig_vec, tau_vec):
+        """
+            Delay a list of signals, given a list of time-delays
+
+            Args:
+                sig_vec (np.ndarray): Collection of signals
+                tau_vec (np.ndarray): Collection of time-delays
+
+            Returns:
+                output_vec (np.ndarray): Collection of delayed signals
+        """
         output_vec = []
-        for idx, _ in enumerate(sig_vec):
-            sig = sig_vec[idx]
+        for idx, sig in enumerate(sig_vec):
+            # Get offset in seconds, based on first tau in each transmission
             offset = tau_vec[idx * self.n_channels][0]
-            timestep = self.t_vec[1]
-            delay = int(round(offset / timestep))
             
+            # Get delay in number of samples
+            delay = int(round(offset / self.t_vec[1]))
+            
+            # Delay signal by desired number of samples
             if delay >= 0:
                 output = np.r_[np.full(delay, 0), sig[:-delay]]
             else:
                 output = np.r_[sig[-delay:], np.full(-delay, 0)]
+                
             output_vec.append(output)
         
         return np.array(output_vec)
@@ -195,14 +196,13 @@ class Radar:
             Returns:
                 rx_sig (list): List of tdm rx signal
         """
-
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
 
-        # Find the originally transmitted signal
+        # Find the originally transmitted signal (starting at t = 0)
         tx_sig_nd = self.transmitter.tx_tdm(self.t_vec)
         
-        # Delay the originally transmitted signal
+        # Delay the originally transmitted signal (starting at tau_m[0])
         tx_sig = self.delay_signal(tx_sig_nd, tau_vec)
         
         # Create the received signal
@@ -219,8 +219,8 @@ class Radar:
                             self.t_vec, rx_sig,
                             f"TX/RX signals for observation {k_obs}")
 
-        if plot_tau:
-            self.plot_tau(self.t_vec, tau)
+        # if plot_tau:
+        #     self.plot_tau(self.t_vec, tau)
 
         return (s_sig, rx_sig)
 
@@ -300,13 +300,13 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2)
-    rx = Receiver(channels=2)
+    tx = Transmitter(channels=3)
+    rx = Receiver(channels=3)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
-    target_states = target.generate_states(k, 'linear_away')
+    target_states = target.generate_states(k, 'linear_way')
     #radar.plot_region(target_states, True)
     radar.observation(1, target_states[1], plot_rx_tx=False, plot_tx=True, plot_rx=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)

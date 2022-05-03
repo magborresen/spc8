@@ -24,7 +24,7 @@ class Transmitter:
         self.prp = prp
         self.t_chirp = t_chirp
         self.mult = mult
-        self.chirps = 2
+        self.chirps = 4
 
     def tx_tdm(self, t_vec):
         """

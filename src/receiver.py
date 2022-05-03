@@ -35,60 +35,31 @@ class Receiver:
             Returns:
                 y_k (np.ndarray): Received signals for the oberservation
         """
+        x_k = []
+        s_k = []
 
-        tx_tot = tx_sig.shape[0] # Number of transmitters
+        idx = 0
+        n_ch = 0
+        while n_ch < self.channels:
+            sig_x = 0
+            sig_s = 0
+            m_ch = 0
+            while m_ch < tx_sig.shape[0]:
+                # Calculate clean signal for antenna pair
+                sig = np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
+                # Iterate signal with noise
+                sig_x += alpha * sig
+                # Iterate signal without noise
+                sig_s += sig
+                m_ch += 1
+                idx += 1  
+            x_k.append(sig_x)
+            s_k.append(sig_s)
+            n_ch += 1    
+        x_k = np.array(x_k)
+        s_k = np.array(s_k)
 
-        rx_sig = []
-        tau_idx = 0
-        for n_ch in range(self.channels):
-            sig = 0
-            for m_ch in range(tx_tot):
-                print(m_ch, n_ch, tau_idx)
-                sig += alpha * np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
-                tau_idx += 1
-            rx_sig.append(sig)
-        rx_sig = np.array(rx_sig)
-        
-        
-        
-        # idx = 0
-        # sig = 0
-        # test = []
-        # for m_ch in range(tx_tot):
-            
-        #     for n_ch in range(self.channels):
-                
-        #         sig += alpha * np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
-        #         idx += 1
-                
-        #     test.append(sig)
-        #     sig = 0
-            
-        # rx_sig = np.array(test)
-        
-        # m_ch = 0
-        # test = []
-        # for idx, _ in enumerate(tau):
-        #     sig = 0
-        #     while m_ch <= tx_tot:
-        #         sig += alpha * np.exp(2j*np.pi*f_carrier*tau[idx]) * tx_sig[m_ch]
-        #     test.append(sig)
-        #     m_ch += 1
-        # rx_sig = np.array(test)
-
-        # print('Signal shape:', rx_sig.shape)
-
-        # Create received signal without noise
-        # x_k = np.array([np.sum(alpha * np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
-        #        for n_ch in range(self.channels)])
-        x_k = rx_sig
-
-        # Create the received signal without noise and attenuation (used for PF)
-        # s_k = np.array([np.sum(np.exp(2j*np.pi*f_carrier*tau) * tx_sig, axis=0)
-        #        for n_ch in range(self.channels)])
-        s_k = x_k
-
-        # Add complex noise to signal
+        # Get observation, add complex noise to signal
         if self.snr and add_noise:
             y_k = x_k + np.array(self.get_noise(x_k))
         else:
