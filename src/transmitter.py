@@ -28,7 +28,14 @@ class Transmitter:
 
     def tx_tdm(self, t_vec):
         """
-            Transmit time division multiplexed signal
+            Transmit time division multiplexed signal. Each pulse will be
+            modulated with a up-chirp.
+            
+            Args:
+                t_vec (np.ndarray): Array containing sample times
+
+            Returns:
+                tx_sigs (np.ndarray): Collection of transmitted signals
         """
         
         start_times = np.array([[(self.t_chirp*tx) + self.t_chirp*self.channels*chirp for chirp in range(self.chirps)] for tx in range(self.channels)])

@@ -89,7 +89,7 @@ class Radar:
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to 
-            every transmitter.
+            every transmitter. Note that output dimension will be M*N
 
             Args:
                 theta (np.ndarray): Target state at observation k
@@ -178,22 +178,29 @@ class Radar:
         return np.array(output_vec)
     
     
-    def butter_lowpass_filter(self, data, cutoff, fs, order=10):
-        # Create filter
-        nyq = 0.5 * fs
+    def butter_lowpass_filter(self, sigs, cutoff, order=10):
+        """
+            Create and apply a low-pass Butterworth filter on multiple signals
+
+            Args:
+                sigs (np.ndarray): Collection of signals
+                cutoff (float): Cutoff frequency for filter
+                order (int): Filter order
+
+            Returns:
+                sigs_filtered (np.ndarray): Collection of filtered signals
+        """
+        # Create the filter
+        nyq = 0.5 * self.receiver.f_sample * self.oversample
         normal_cutoff = cutoff / nyq
         b, a = butter(order, normal_cutoff, btype='low', analog=False)
-        y = []
-        # Apply filter
-        for idx, sig in enumerate(data):
-            y.append(lfilter(b, a, sig))
-        return np.array(y)
-    
-    def mixer(self, tx_sig, rx_sig):
-        output = np.conjugate(rx_sig) * tx_sig
-        return output
+        sigs_filtered = []
+        # Apply the filter
+        for idx, sig in enumerate(sigs):
+            sigs_filtered.append(lfilter(b, a, sig))
+        return np.array(sigs_filtered)
 
-    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False):
+    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False, plot_fft=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -212,37 +219,37 @@ class Radar:
         tau_vec = self.time_delay(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
-        tx_sig_nd = self.transmitter.tx_tdm(self.t_vec)
+        tx_sig = self.transmitter.tx_tdm(self.t_vec)
         
         # Delay the originally transmitted signal (starting at tau)
-        tx_sig = self.delay_signal(tx_sig_nd, tau_vec)
+        tx_sig_offset = self.delay_signal(tx_sig, tau_vec)
         
         # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
+        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig_offset, self.transmitter.f_carrier, add_noise=add_noise)
 
         # Mix signals
-        output = self.mixer(tx_sig_nd, rx_sig)
-        output_lpf = self.butter_lowpass_filter(output, self.receiver.f_sample/2-1, self.receiver.f_sample * self.oversample)
-        
-        # Bjarke's debug plots
-        self.plot_sig(output, "Mixed")
-        self.plot_fft(output, "FFT of mixed signals")
-        self.plot_sig(output_lpf, "LPF mixed")
-        self.plot_fft(output_lpf, "FFT of LPF mixed signals")
+        mixed_sig = np.conjugate(rx_sig) * sum(tx_sig)
+        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1)
         
         # Plotters
         if plot_tx:
-            self.plot_sig(tx_sig_nd, f"TX signals for observation {k_obs}")
+            self.plot_sig(tx_sig, f"TX signals for observation {k_obs}")
         if plot_rx:
             self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
         if plot_tau:
             self.plot_tau(tau_vec)
+        if plot_mixed:
+            self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
+        if plot_fft:
+            self.plot_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
         return (s_sig, rx_sig)
 
     def plot_sig(self, sig, title):
         """
-            Plot the transmitted signals over time
+            Plot the transmitted signals over time. This plotter will create a 
+            subplot for each signal, be aware that it does not plot more than 
+            {maxPlots} subplots in total.
 
             Args:
                 sig (np.ndarray): Collection of signal to plot
@@ -274,7 +281,6 @@ class Radar:
             Returns:
                 no value
         """
-
         for idx, tau in enumerate(tau_vec):
             plt.plot(self.t_vec / 1e-6, self.light_speed * tau / 2, label=f'\u03C4$_{idx}$')
             print(f"Change in \u03C4: {idx}", tau[-1] - tau[0])
@@ -285,6 +291,18 @@ class Radar:
         plt.show()
 
     def plot_fft(self, sig_vec, title=None):
+        """
+            Find and plot FFT's for inputtet signals. This plotter will create 
+            a subplot for each signal, be aware that it does not plot more than 
+            {maxPlots} subplots in total.
+
+            Args:
+                tau_vec (np.ndarray): Collection of time delays over time
+                title (str): Title for the plot
+
+            Returns:
+                no value
+        """
         if self.oversample < 10:
             print('You have to oversample with 10, to plot FFT')
         maxPlots = 3
@@ -307,13 +325,13 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=4, t_chirp=60e-6, chirps=4)
-    rx = Receiver(channels=4, snr=10)
+    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
+    rx = Receiver(channels=2, snr=10)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False)
+    radar.observation(1, target_states[1], add_noise=True, plot_tx=False, plot_rx=False, plot_mixed=False, plot_fft=False)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
