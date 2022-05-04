@@ -177,15 +177,16 @@ class Radar:
         
         return np.array(output_vec)
     
-    def butter_lowpass(self, cutoff, fs, order=10):
-        nyq = 0.5 * fs
-        normal_cutoff = cutoff / nyq
-        b, a = butter(order, normal_cutoff, btype='low', analog=False)
-        return b, a
     
     def butter_lowpass_filter(self, data, cutoff, fs, order=10):
-        b, a = self.butter_lowpass(cutoff, fs, order=order)
+        # Create filter
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        print(normal_cutoff)
+        
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
         y = []
+        # Apply filter
         for idx, sig in enumerate(data):
             y.append(lfilter(b, a, sig))
         return np.array(y)
@@ -219,7 +220,7 @@ class Radar:
 
         # Mix signals
         output = rx_sig * sum(tx_sig)
-        output_lpf = self.butter_lowpass_filter(output, self.receiver.f_sample/2, self.receiver.f_sample * self.oversample)
+        output_lpf = self.butter_lowpass_filter(output, self.receiver.f_sample/2-1, self.receiver.f_sample * self.oversample)
         self.plot_sig(output, "Mixed")
         self.plot_sig(output_lpf, "LPF mixed")
         self.plot_fft(output, "FFT of mixed signals")
@@ -250,7 +251,6 @@ class Radar:
         maxPlots = 5
         fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
-        axs.ravel()
         for idx, m_ch in enumerate(sig):
             axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
@@ -274,6 +274,7 @@ class Radar:
 
         for idx, tau in enumerate(tau_vec):
             plt.plot(self.t_vec / 1e-6, self.light_speed * tau / 2, label=f'\u03C4$_{idx}$')
+            print(f"Change in \u03C4: {idx}", tau[-1] - tau[0])
         plt.legend()
         plt.xlabel("Time [µs]")
         plt.ylabel("Range [m]")
@@ -284,7 +285,6 @@ class Radar:
         maxPlots = 3
         fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
-        axs.ravel()
         for idx, sig in enumerate(sig_vec):
             fft_sig = np.fft.fft(sig)
             N = len(fft_sig)
@@ -302,13 +302,13 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=3, t_chirp=60e-6, chirps=1)
-    rx = Receiver(channels=3, snr=30)
+    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=1)
+    rx = Receiver(channels=2, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], add_noise=False, plot_tx=False, plot_rx=False)
+    radar.observation(1, target_states[1], add_noise=False, plot_tx=True, plot_rx=False, plot_tau=True)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
