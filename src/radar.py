@@ -228,8 +228,12 @@ class Radar:
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig_offset, self.transmitter.f_carrier, add_noise=add_noise)
 
         # Mix signals
-        mixed_sig = np.conjugate(rx_sig) * sum(tx_sig)
-        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1)
+        mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
+        mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
+        
+        # Low-pass filter signals
+        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1) # With attenuation
+        lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1) # Without attenuation
         
         # Plotters
         if plot_tx:
@@ -241,9 +245,11 @@ class Radar:
         if plot_mixed:
             self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
         if plot_fft:
+            if self.oversample != 10:
+                print('You have to oversample with 10, to plot FFT')
             self.plot_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
-        return (s_sig, rx_sig)
+        return (lpf_mixed_s_sig, lpf_mixed_sig)
 
     def plot_sig(self, sig, title):
         """
@@ -303,8 +309,6 @@ class Radar:
             Returns:
                 no value
         """
-        if self.oversample < 10:
-            print('You have to oversample with 10, to plot FFT')
         maxPlots = 3
         fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
@@ -314,11 +318,13 @@ class Radar:
             T = N/(self.receiver.f_sample * self.oversample)
             n = np.arange(N)
             freq = n/T
-            axs[idx].plot(freq[:N//2]/1e6, 2.0/N * np.abs(fft_sig[:N//2]))
+            fft_range = freq * self.light_speed / (2 * self.transmitter.bandwidth/self.transmitter.t_chirp)
+            # axs[idx].plot(freq[:N//2]*const, 2.0/N * np.abs(fft_sig[:N//2]))
+            axs[idx].plot(fft_range[:N//2], 2.0/N * np.abs(fft_sig[:N//2]))
             axs[idx].set_title(f"Channel: {idx}")
             if idx == maxPlots-1: 
                 break
-        plt.xlabel("Frequency [MHz]")
+        plt.xlabel("Range [m]")
         fig.suptitle(title)
         plt.tight_layout()
         plt.show()
@@ -326,12 +332,12 @@ class Radar:
 if __name__ == '__main__':
     k = 10
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
-    rx = Receiver(channels=2, snr=10)
+    rx = Receiver(channels=2, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], add_noise=True, plot_tx=False, plot_rx=False, plot_mixed=False, plot_fft=False)
+    radar.observation(1, target_states[1], add_noise=False, plot_tx=False, plot_rx=False, plot_mixed=False, plot_fft=False)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
