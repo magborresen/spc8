@@ -21,7 +21,9 @@ class ParticleFilter():
         self.theta_est = None
         self.acc = None
         self.weights = None
-        self.posterior = None
+        self.likelihoods = None
+        self.init_particles_uniform()
+        self.init_weights()
 
     def init_particles_uniform(self) -> None:
         """
@@ -50,6 +52,8 @@ class ParticleFilter():
         # Initialize gains for each particle at each receiver
         self.alpha_est = np.ones((self.n_particles, self.n_rx_channels), dtype=np.complex128)
 
+        self.likelihoods = np.zeros((self.n_particles, 1))
+
     def init_weights(self):
         """
             Initialize weights for the associated particles
@@ -75,24 +79,33 @@ class ParticleFilter():
                                         self._t_obs * self.acc[particle])
 
         # Update alphas for each receiver
-        for i in range(sk_n.shape[0]): 
+        for i in range(sk_n.shape[0]):
             self.alpha_est[particle][i] = np.divide(np.dot(np.conjugate(sk_n[i]), yk_n[i]),
                                                  np.square(np.linalg.norm(sk_n[i])))
 
-    def update_weight(self, particle, y_k, x_k_i, sigma_w, M, N):
+    def update_likelihood(self, particle, y_k, x_k_i, sigma_w):
+        """
+            Update the likelihood for each particle
+        """
+        self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
+                                      np.square(np.linalg.norm(y_k - x_k_i))))
+
+        print(np.square(np.linalg.norm(y_k - x_k_i)))
+
+    def update_weights(self):
         """
             Update the posterior probability for each particle target signal
 
             Args:
                 y_k (np.ndarray): Observed signal for observation k
                 x_k (np.ndarray): Target signal for observation k
+                sigma_w (float): Signal noise variance
         """
 
-        c = (2 * np.pi * sigma_w)**(-M * N)
+        numerator = self.weights * self.likelihoods
+        denominator = np.sum(self.weights * self.likelihoods)
 
-        posterior = [(c * np.exp(- 1 / np.var(sigma_w) * np.square(np.linalg.norm(y_k - x_k_i))))]
-
-        self.weights[particle] = self.weights[particle] * posterior / (np.sum(self.weights) * posterior)
+        self.weights = numerator / denominator
 
 
     def plot_particles(self):

@@ -24,16 +24,25 @@ class Simulator:
         _, rx_sig = self.radar.observation(k_obs, target_state)
 
         for particle in range(self.particle_filter.n_particles):
-            s_sig_i, x_k_i = self.radar.observation(k_obs,
-                                                    self.particle_filter.theta_est[particle],
-                                                    add_noise=False)
+            # Create an observation with each particle location
+            s_sig_i, _ = self.radar.observation(k_obs,
+                                                self.particle_filter.theta_est[particle],
+                                                add_noise=False)
+
+
+            # Update particle positions
             self.particle_filter.update_particle(particle, s_sig_i, rx_sig)
-            self.particle_filter.update_weight(particle,
-                                               rx_sig,
-                                               x_k_i,
-                                               self.radar.receiver.sigma_noise,
-                                               self.radar.n_channels,
-                                               self.radar.samples_per_obs)
+
+            _, x_k_i = self.radar.observation(k_obs, self.particle_filter.theta_est[particle], alpha=self.particle_filter.alpha_est[particle], add_noise=False)
+
+            # Update likelihood for each particle
+            self.particle_filter.update_likelihood(particle,
+                                                   rx_sig,
+                                                   x_k_i,
+                                                   self.radar.receiver.sigma_noise)
+
+        # Update the weights for all particles
+        self.particle_filter.update_weights()
 
 
 if __name__ == '__main__':
@@ -43,7 +52,7 @@ if __name__ == '__main__':
 
     radar = Radar(tx, rx, "tdm", 2000)
     target = Target(radar.t_obs + radar.k_space)
-    pf = ParticleFilter(radar.t_obs + radar.k_space, n_particles=10)
+    pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=10)
 
     sim = Simulator(k, radar, target, pf)
     sim.target_estimate(0)
