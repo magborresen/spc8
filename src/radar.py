@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
+from scipy.signal import butter, lfilter, freqz
 
 class Radar:
     """
@@ -25,11 +26,11 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
-        self.t_obs = self.t_rx*self.n_channels + self.transmitter.t_chirp*self.m_channels
-        self.oversample = 1
+        self.t_obs = self.transmitter.t_chirp*self.m_channels*self.transmitter.chirps + self.transmitter.t_chirp
+        self.oversample = 10
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
-        self.wavelength = self.light_speed / self.receiver.f_sample
+        self.wavelength = self.light_speed / self.transmitter.f_carrier
         self.tx_pos = None
         self.rx_pos = None
         self.place_antennas()
@@ -56,50 +57,6 @@ class Radar:
                                 np.linspace(self.tx_pos[1][-1] - self.wavelength/2,
                                             0,
                                             self.n_channels)])
-
-    def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
-        """
-            Find time delay from receiver n, to the target, to the m'th transmitters.
-            It is assumed that all antennas are located in the origin of the
-            coordinate system.
-
-            Args:
-                theta (np.ndarray): x and y position of the target
-                t_vec  (np.ndarray): Times for which to calculate the delays
-
-            Returns:
-                tau (float): Signal time delay
-        """
-
-        traj = self.trajectory(t_vec, theta)
-
-        tau = 2 / self.light_speed * traj
-
-        return tau
-
-    def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
-        """
-            Calculate target trajectory within an acquisition period
-
-            Angle A is betweeen the line-of-sight from origin to target, and
-            the velocity vector of the drone. los is a unit vector
-            representation of the line-of-sight.
-
-            Args:
-                t_vec (np.ndarray): time vector
-                theta (np.ndarray): Target position
-
-            Returns:
-                r_k (np.ndarray): Short time trajectory model based 
-                                  on original position and velocity.
-        """
-        # Normalized unitvector for position (line-of-sight)
-        los = theta[:2] / np.linalg.norm(theta[:2])
-
-        # Target trajectory within acquisition period
-        r_k = np.linalg.norm(theta[:2]) + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
-
-        return r_k
 
     def plot_region(self, states, zoom=False):
         """
@@ -129,6 +86,55 @@ class Radar:
         plt.legend()
         plt.show()
 
+    def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
+        """
+            Find time delays from receiver each n, to the target, and back to 
+            every transmitter. Note that output dimension will be M*N
+
+            Args:
+                theta (np.ndarray): Target state at observation k
+                t_vec  (np.ndarray): Times for which to calculate the delays
+
+            Returns:
+                tau (np.ndarray): Collection of time delay signals
+        """
+
+        traj = self.trajectory(t_vec, theta)
+
+        tau = []
+        for rx_n in range(self.n_channels):
+            for tx_m in range(self.m_channels):
+                d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
+                d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
+                tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
+                tau.append(tau_kmn)
+
+        return np.array(tau)
+
+    def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
+        """
+            Calculate target trajectory within an acquisition period
+
+            Angle A is betweeen the line-of-sight from origin to target, and
+            the velocity vector of the drone. los is a unit vector
+            representation of the line-of-sight.
+
+            Args:
+                t_vec (np.ndarray): time vector
+                theta (np.ndarray): Target position
+
+            Returns:
+                r_k (np.ndarray): Short time trajectory model based 
+                                  on original position and velocity.
+        """
+        # Normalized unitvector for position (line-of-sight)
+        los = theta[:2] / np.linalg.norm(theta[:2])
+
+        # Target trajectory within acquisition period
+        r_k = theta[:2] + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+
+        return r_k
+
     def create_time_vector(self):
         """
             Create a generic time vector
@@ -142,8 +148,59 @@ class Radar:
         t_vec = np.linspace(0, self.t_obs, self.samples_per_obs)
 
         return t_vec
+    
+    def delay_signal(self, sig_vec, tau_vec):
+        """
+            Delay a list of signals, given a list of time-delays. A entire
+            transmitted signal is delayed by the first corresponding tau. It
+            is assumed that the target does not move within t_obs.
 
-    def observation(self, k_obs, theta, alpha=1+1j, add_noise=True, plot_tx=False, plot_rx=False, plot_rx_tx=False, plot_tau=False):
+            Args:
+                sig_vec (np.ndarray): Collection of signals
+                tau_vec (np.ndarray): Collection of time-delays
+
+            Returns:
+                output_vec (np.ndarray): Collection of delayed signals
+        """
+        output_vec = []
+        for idx, sig in enumerate(sig_vec):
+            # Get offset in seconds, based on first tau from each transmitter
+            offset = tau_vec[idx * self.n_channels][0]
+            
+            # Get delay in number of samples
+            delay = round(offset / self.t_vec[1])
+            
+            # Delay signal by desired number of samples (pad with 0)
+            output = np.r_[np.full(delay, 0), sig[:-delay]]
+                
+            output_vec.append(output)
+        
+        return np.array(output_vec)
+    
+    
+    def butter_lowpass_filter(self, sigs, cutoff, order=10):
+        """
+            Create and apply a low-pass Butterworth filter on multiple signals
+
+            Args:
+                sigs (np.ndarray): Collection of signals
+                cutoff (float): Cutoff frequency for filter
+                order (int): Filter order
+
+            Returns:
+                sigs_filtered (np.ndarray): Collection of filtered signals
+        """
+        # Create the filter
+        nyq = 0.5 * self.receiver.f_sample * self.oversample
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        sigs_filtered = []
+        # Apply the filter
+        for idx, sig in enumerate(sigs):
+            sigs_filtered.append(lfilter(b, a, sig))
+        return np.array(sigs_filtered)
+
+    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False, plot_fft=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -153,125 +210,134 @@ class Radar:
                 theta (np.ndarray): Target position and velocity.
                 plot_tx (bool): Plot the transmitted signals.
                 plot_rx (bool): Plot the received signals.
-                plot_rx_tx (bool): Plot the received and transmitted
-                                   signals in the same figure.
-                plot_tau (bool): Plot the calculated delay over time.
+                plot_tau (bool): Plot the calculated delays over time.
 
             Returns:
                 rx_sig (list): List of tdm rx signal
         """
-
         # Find the time delay between the tx -> target -> rx
-        tau = self.time_delay(theta, self.t_vec)
+        tau_vec = self.time_delay(theta, self.t_vec)
 
-        # Shift the time vector for the tx signals
-        delay = self.t_vec - tau[0]
+        # Find the originally transmitted signal (starting at t = 0)
+        tx_sig = self.transmitter.tx_tdm(self.t_vec)
+        
+        # Delay the originally transmitted signal (starting at tau)
+        tx_sig_offset = self.delay_signal(tx_sig, tau_vec)
+        
+        # Create the received signal
+        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig_offset, self.transmitter.f_carrier, add_noise=add_noise)
 
-        # Find the originally transmitted signals
-        tx_sig = self.transmitter.tx_tdm(delay, self.t_rx)
-
-        # Create the received signals
-        s_sig, rx_sig = self.receiver.rx_tdm(tau, tx_sig, self.transmitter.f_carrier, alpha=alpha, add_noise=add_noise)
-
+        # Mix signals
+        mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
+        mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
+        
+        # Low-pass filter signals
+        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1) # With attenuation
+        lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1) # Without attenuation
+        
+        # Plotters
         if plot_tx:
-            self.plot_sig(delay, tx_sig, f"TX signals for observation {k_obs}")
-
+            self.plot_sig(tx_sig, f"TX signals for observation {k_obs}")
         if plot_rx:
-            self.plot_sig(self.t_vec, rx_sig, f"RX signals for observation {k_obs}")
-
-        if plot_rx_tx:
-            self.plot_sigs(delay, tx_sig,
-                           self.t_vec, rx_sig,
-                           f"TX/RX signals for observation {k_obs}")
-
+            self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
         if plot_tau:
-            self.plot_tau(self.t_vec, tau)
+            self.plot_tau(tau_vec)
+        if plot_mixed:
+            self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
+        if plot_fft:
+            if self.oversample != 10:
+                print('You have to oversample with 10, to plot FFT')
+            self.plot_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
-        return (s_sig, rx_sig)
+        return (lpf_mixed_s_sig, lpf_mixed_sig)
 
-    def plot_sig(self, t_vec, sig, title):
+    def plot_sig(self, sig, title):
         """
-            Plot the transmitted signals over time
+            Plot the transmitted signals over time. This plotter will create a 
+            subplot for each signal, be aware that it does not plot more than 
+            {maxPlots} subplots in total.
 
             Args:
-                t_vec (np.ndarray): Time based array for x-axis
-                sign (np.ndarray): Signal to plot
+                sig (np.ndarray): Collection of signal to plot
                 title (str): Title for the plot
 
             Returns:
                 no value
         """
-
-        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
+        maxPlots = 5
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
-        axs.ravel()
-
         for idx, m_ch in enumerate(sig):
-            axs[idx].plot(t_vec / 1e-6, m_ch.real)
+            axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
-
+            if idx == maxPlots-1: 
+                break
         plt.xlabel("Time [µs]")
         fig.suptitle(title)
+        plt.tight_layout()
         plt.show()
 
-    def plot_sigs(self, t_vec1, sig1, t_vec2, sig2, title):
-        """
-            Plot multiple signals over time
-
-            Args:
-                t_vec1 (np.ndarray): First time vector
-                sig1 (np.ndarray): First signal to plot
-                t_vec2 (np.ndarray): Second time vector
-                sig2 (np.ndarray): Second signal to plot
-                title (str): Title of the figure
-
-            Returns:
-                no value
-        """
-
-        fig, axs = plt.subplots(nrows=self.m_channels, ncols=1, figsize=(8, 5), sharex=True)
-        plt.subplots_adjust(hspace=0.5)
-        axs.ravel()
-
-        for idx, m_ch in enumerate(sig1):
-            axs[idx].plot(t_vec1 / 1e-6, np.sum(sig1, axis=0).real)
-            axs[idx].set_title(f"Channel: {idx}")
-
-        for idx, m_ch in enumerate(sig2):
-            axs[idx].plot(t_vec2 / 1e-6, m_ch.real)
-
-        plt.xlabel("Time [µs]")
-        fig.suptitle(title)
-        plt.show()
-
-
-    def plot_tau(self, t_vec, tau):
+    def plot_tau(self, tau_vec):
         """
             Plot the calculated delays over time
 
             Args:
-                t_vec (np.ndarray): Time vector over which to plot tau
-                tau (np.ndarray): The delay variables over time
+                tau_vec (np.ndarray): Collection of time delays over time
 
             Returns:
                 no value
         """
-
-        plt.plot(t_vec / 1e-6, tau)
+        for idx, tau in enumerate(tau_vec):
+            plt.plot(self.t_vec / 1e-6, self.light_speed * tau / 2, label=f'\u03C4$_{idx}$')
+            print(f"Change in \u03C4: {idx}", tau[-1] - tau[0])
+        plt.legend()
         plt.xlabel("Time [µs]")
-        plt.ylabel("$\tau$")
-        plt.title("$\tau$ over time")
+        plt.ylabel("Range [m]")
+        plt.title("\u03C4 converted into range over time")
         plt.show()
 
+    def plot_fft(self, sig_vec, title=None):
+        """
+            Find and plot FFT's for inputtet signals. This plotter will create 
+            a subplot for each signal, be aware that it does not plot more than 
+            {maxPlots} subplots in total.
+
+            Args:
+                tau_vec (np.ndarray): Collection of time delays over time
+                title (str): Title for the plot
+
+            Returns:
+                no value
+        """
+        maxPlots = 3
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
+        plt.subplots_adjust(hspace=0.5)
+        for idx, sig in enumerate(sig_vec):
+            fft_sig = np.fft.fft(sig)
+            N = len(fft_sig)
+            T = N/(self.receiver.f_sample * self.oversample)
+            n = np.arange(N)
+            freq = n/T
+            fft_range = freq * self.light_speed / (2 * self.transmitter.bandwidth/self.transmitter.t_chirp)
+            # axs[idx].plot(freq[:N//2]*const, 2.0/N * np.abs(fft_sig[:N//2]))
+            axs[idx].plot(fft_range[:N//2], 2.0/N * np.abs(fft_sig[:N//2]))
+            axs[idx].set_title(f"Channel: {idx}")
+            if idx == maxPlots-1: 
+                break
+        plt.xlabel("Range [m]")
+        fig.suptitle(title)
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2)
-    rx = Receiver(channels=2)
+    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
+    rx = Receiver(channels=2, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
-    #radar.plot_region(target_states, False)
-    s, rx = radar.observation(1, target_states[1], plot_tx=True)
+    #radar.plot_region(target_states, True)
+    radar.observation(1, target_states[1], add_noise=False, plot_tx=False, plot_rx=False, plot_mixed=False, plot_fft=False)
+    # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
