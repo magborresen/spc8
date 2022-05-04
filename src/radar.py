@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
+from scipy.signal import butter, lfilter, freqz
 
 class Radar:
     """
@@ -25,11 +26,11 @@ class Radar:
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
-        self.t_obs = self.transmitter.t_chirp*self.m_channels*self.transmitter.chirps
-        self.oversample = 1
+        self.t_obs = self.transmitter.t_chirp*self.m_channels*self.transmitter.chirps + self.transmitter.t_chirp
+        self.oversample = 10
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
-        self.wavelength = self.light_speed / self.receiver.f_sample
+        self.wavelength = self.light_speed / self.transmitter.f_carrier
         self.tx_pos = None
         self.rx_pos = None
         self.place_antennas()
@@ -56,6 +57,34 @@ class Radar:
                                 np.linspace(self.tx_pos[1][-1] - self.wavelength/2,
                                             0,
                                             self.n_channels)])
+
+    def plot_region(self, states, zoom=False):
+        """
+            Plots the observation region with antenna locations and trajectory
+
+            Args:
+                states (np.ndarray): Collection of all states
+                zoom (bool): Show only trajectory region if true
+
+            Returns:
+                no value
+        """
+        fig, ax = plt.subplots()
+        ax.scatter(states[:,0], states[:,1], label="Trajectory")
+        ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
+        ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
+        ax.set_aspect(1)
+        if zoom:
+            ax.set_xlim(min(states[:,0]), max(states[:,0]))
+            ax.set_ylim(min(states[:,1]), max(states[:,1]))
+        else:
+            ax.set_xlim(0, self.region)
+            ax.set_ylim(0, self.region)
+        plt.title('Observation region with antennas and trajectory')
+        plt.ylabel('y [m]')
+        plt.xlabel('x [m]')
+        plt.legend()
+        plt.show()
 
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
@@ -106,34 +135,6 @@ class Radar:
 
         return r_k
 
-    def plot_region(self, states, zoom=False):
-        """
-            Plots the observation region with antenna locations and trajectory
-
-            Args:
-                states (np.ndarray): Collection of all states
-                zoom (bool): Show only trajectory region if true
-
-            Returns:
-                no value
-        """
-        fig, ax = plt.subplots()
-        ax.scatter(states[:,0], states[:,1], label="Trajectory")
-        ax.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
-        ax.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
-        ax.set_aspect(1)
-        if zoom:
-            ax.set_xlim(min(states[:,0]), max(states[:,0]))
-            ax.set_ylim(min(states[:,1]), max(states[:,1]))
-        else:
-            ax.set_xlim(0, self.region)
-            ax.set_ylim(0, self.region)
-        plt.title('Observation region with antennas and trajectory')
-        plt.ylabel('y [m]')
-        plt.xlabel('x [m]')
-        plt.legend()
-        plt.show()
-
     def create_time_vector(self):
         """
             Create a generic time vector
@@ -176,6 +177,18 @@ class Radar:
         
         return np.array(output_vec)
     
+    def butter_lowpass(self, cutoff, fs, order=10):
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        return b, a
+    
+    def butter_lowpass_filter(self, data, cutoff, fs, order=10):
+        b, a = self.butter_lowpass(cutoff, fs, order=order)
+        y = []
+        for idx, sig in enumerate(data):
+            y.append(lfilter(b, a, sig))
+        return np.array(y)
 
     def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False):
         """
@@ -206,7 +219,12 @@ class Radar:
 
         # Mix signals
         output = rx_sig * sum(tx_sig)
-        self.plot_sig(output, f"Mixed signals for observation {k_obs}")
+        output_lpf = self.butter_lowpass_filter(output, self.receiver.f_sample/2, self.receiver.f_sample * self.oversample)
+        self.plot_sig(output, "Mixed")
+        self.plot_sig(output_lpf, "LPF mixed")
+        self.plot_fft(output, "FFT of mixed signals")
+        self.plot_fft(output_lpf, "FFT of LPF mixed signals")
+        self.plot_fft(tx_sig, "FFT of transmitted, delayed signals")
 
         # Plotters
         if plot_tx:
@@ -262,9 +280,29 @@ class Radar:
         plt.title("\u03C4 converted into range over time")
         plt.show()
 
+    def plot_fft(self, sig_vec, title=None):
+        maxPlots = 3
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
+        plt.subplots_adjust(hspace=0.5)
+        axs.ravel()
+        for idx, sig in enumerate(sig_vec):
+            fft_sig = np.fft.fft(sig)
+            N = len(fft_sig)
+            T = N/(self.receiver.f_sample * self.oversample)
+            n = np.arange(N)
+            freq = n/T
+            axs[idx].plot(freq[:N//2]/1e6, 2.0/N * np.abs(fft_sig[:N//2]))
+            axs[idx].set_title(f"Channel: {idx}")
+            if idx == maxPlots-1: 
+                break
+        plt.xlabel("Frequency [MHz]")
+        fig.suptitle(title)
+        plt.tight_layout()
+        plt.show()
+
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=3, t_chirp=30e-6, chirps=2)
+    tx = Transmitter(channels=3, t_chirp=60e-6, chirps=1)
     rx = Receiver(channels=3, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
@@ -272,5 +310,5 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], add_noise=False, plot_tx=True, plot_rx=False)
+    radar.observation(1, target_states[1], add_noise=False, plot_tx=False, plot_rx=False)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
