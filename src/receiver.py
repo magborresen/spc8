@@ -22,7 +22,7 @@ class Receiver:
         self.channels = channels
         self.sigma_noise = snr
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1+1j, add_noise=True) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1, add_noise=True) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 

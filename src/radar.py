@@ -182,14 +182,16 @@ class Radar:
         # Create filter
         nyq = 0.5 * fs
         normal_cutoff = cutoff / nyq
-        print(normal_cutoff)
-        
         b, a = butter(order, normal_cutoff, btype='low', analog=False)
         y = []
         # Apply filter
         for idx, sig in enumerate(data):
             y.append(lfilter(b, a, sig))
         return np.array(y)
+    
+    def mixer(self, tx_sig, rx_sig):
+        output = np.conjugate(rx_sig) * tx_sig
+        return output
 
     def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False):
         """
@@ -219,14 +221,15 @@ class Radar:
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, add_noise=add_noise)
 
         # Mix signals
-        output = rx_sig * sum(tx_sig)
+        output = self.mixer(tx_sig_nd, rx_sig)
         output_lpf = self.butter_lowpass_filter(output, self.receiver.f_sample/2-1, self.receiver.f_sample * self.oversample)
+        
+        # Bjarke's debug plots
         self.plot_sig(output, "Mixed")
-        self.plot_sig(output_lpf, "LPF mixed")
         self.plot_fft(output, "FFT of mixed signals")
+        self.plot_sig(output_lpf, "LPF mixed")
         self.plot_fft(output_lpf, "FFT of LPF mixed signals")
-        self.plot_fft(tx_sig, "FFT of transmitted, delayed signals")
-
+        
         # Plotters
         if plot_tx:
             self.plot_sig(tx_sig_nd, f"TX signals for observation {k_obs}")
@@ -282,6 +285,8 @@ class Radar:
         plt.show()
 
     def plot_fft(self, sig_vec, title=None):
+        if self.oversample < 10:
+            print('You have to oversample with 10, to plot FFT')
         maxPlots = 3
         fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
@@ -302,13 +307,13 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=1)
-    rx = Receiver(channels=2, snr=30)
+    tx = Transmitter(channels=4, t_chirp=60e-6, chirps=4)
+    rx = Receiver(channels=4, snr=10)
 
     radar = Radar(tx, rx, "tdm", 2000)
 
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     #radar.plot_region(target_states, True)
-    radar.observation(1, target_states[1], add_noise=False, plot_tx=True, plot_rx=False, plot_tau=True)
+    radar.observation(1, target_states[1], add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False)
     # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
