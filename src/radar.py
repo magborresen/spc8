@@ -3,10 +3,11 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import butter, sosfilt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
-from scipy.signal import butter, lfilter, freqz
+
 
 class Radar:
     """
@@ -27,9 +28,10 @@ class Radar:
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
         self.t_obs = self.transmitter.t_chirp*self.m_channels*self.transmitter.chirps + self.transmitter.t_chirp
-        self.oversample = 10
+        self.oversample = 1
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
+        self.atmos_loss_factor = 0.02
         self.wavelength = self.light_speed / self.transmitter.f_carrier
         self.tx_pos = None
         self.rx_pos = None
@@ -135,6 +137,19 @@ class Radar:
 
         return r_k
 
+    def get_attenuation(self, theta, target_rcs=0.04):
+        """
+            Calculate alpha to attenuate the received signal
+        """
+        aperture = self.wavelength**2 * 0.5
+        gain = 4 * np.pi * aperture / self.wavelength**2
+        target_range = np.linalg.norm(theta[:2])
+        loss_atmospheric = 10**(self.atmos_loss_factor * target_range / 5000)
+        attenuation = (gain**2 * self.wavelength**2 * target_rcs /
+                      ((4*np.pi)**3 * target_range**4 * loss_atmospheric))
+
+        return np.full(self.n_channels, attenuation)
+
     def create_time_vector(self):
         """
             Create a generic time vector
@@ -166,18 +181,18 @@ class Radar:
         for idx, sig in enumerate(sig_vec):
             # Get offset in seconds, based on first tau from each transmitter
             offset = tau_vec[idx * self.n_channels][0]
-            
+
             # Get delay in number of samples
             delay = round(offset / self.t_vec[1])
-            
+
             # Delay signal by desired number of samples (pad with 0)
             output = np.r_[np.full(delay, 0), sig[:-delay]]
-                
+
             output_vec.append(output)
-        
+
         return np.array(output_vec)
-    
-    
+
+
     def butter_lowpass_filter(self, sigs, cutoff, order=10):
         """
             Create and apply a low-pass Butterworth filter on multiple signals
@@ -191,16 +206,15 @@ class Radar:
                 sigs_filtered (np.ndarray): Collection of filtered signals
         """
         # Create the filter
-        nyq = 0.5 * self.receiver.f_sample * self.oversample
-        normal_cutoff = cutoff / nyq
-        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        nyq = self.receiver.f_sample * self.oversample
+        sos = butter(order, cutoff, fs=nyq, btype='low', analog=False, output='sos')
         sigs_filtered = []
         # Apply the filter
-        for idx, sig in enumerate(sigs):
-            sigs_filtered.append(lfilter(b, a, sig))
+        for _, sig in enumerate(sigs):
+            sigs_filtered.append(sosfilt(sos, sig))
         return np.array(sigs_filtered)
 
-    def observation(self, k_obs, theta, add_noise=True, plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False, plot_fft=False):
+    def observation(self, k_obs, theta, alpha=None, add_noise=False, plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False, plot_fft=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -215,26 +229,32 @@ class Radar:
             Returns:
                 rx_sig (list): List of tdm rx signal
         """
+        if alpha is None:
+            alpha = self.get_attenuation(theta)
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
-        
+
         # Delay the originally transmitted signal (starting at tau)
         tx_sig_offset = self.delay_signal(tx_sig, tau_vec)
-        
+
         # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec, tx_sig_offset, self.transmitter.f_carrier, add_noise=add_noise)
+        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec,
+                                             tx_sig_offset,
+                                             self.transmitter.f_carrier,
+                                             alpha,
+                                             add_noise=add_noise)
 
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
         mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
-        
+
         # Low-pass filter signals
         lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1) # With attenuation
         lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1) # Without attenuation
-        
+
         # Plotters
         if plot_tx:
             self.plot_sig(tx_sig, f"TX signals for observation {k_obs}")
@@ -245,8 +265,6 @@ class Radar:
         if plot_mixed:
             self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
         if plot_fft:
-            if self.oversample != 10:
-                print('You have to oversample with 10, to plot FFT')
             self.plot_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
         return (lpf_mixed_s_sig, lpf_mixed_sig)

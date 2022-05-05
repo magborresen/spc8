@@ -80,7 +80,7 @@ class ParticleFilter():
 
         # Update alphas for each receiver
         for i in range(sk_n.shape[0]):
-            self.alpha_est[particle][i] = np.divide(np.dot(np.conjugate(sk_n[i]), yk_n[i]),
+            self.alpha_est[particle][i] = np.divide(np.dot(np.conjugate(sk_n[i]).T, yk_n[i]),
                                                  np.square(np.linalg.norm(sk_n[i])))
 
     def update_likelihood(self, particle, y_k, x_k_i, sigma_w):
@@ -90,7 +90,7 @@ class ParticleFilter():
         self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
                                       np.square(np.linalg.norm(y_k - x_k_i))))
 
-        print(np.square(np.linalg.norm(y_k - x_k_i)))
+        #print(np.square(np.linalg.norm(y_k - x_k_i)))
 
     def update_weights(self):
         """
@@ -146,7 +146,7 @@ class ParticleFilter():
 
 ## Testing
 if __name__ == '__main__':
-    pf = ParticleFilter(1.33e-7 + 1.8734e-5, 100)
+    pf = ParticleFilter(1.33e-7 + 1.8734e-5, 1000)
     pf.init_particles_uniform()
     pf.init_weights()
     pf.plot_particles()

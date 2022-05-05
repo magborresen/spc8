@@ -22,7 +22,7 @@ class Receiver:
         self.channels = channels
         self.sigma_noise = snr
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1, add_noise=True) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray, add_noise=True) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
@@ -40,32 +40,32 @@ class Receiver:
         x_k = []
         s_k = []
         tau_idx = 0
-        
+
         for n_ch in range(self.channels):
             # Set signals to 0
             sig_x = 0
             sig_s = 0
-            
+
             for m_ch in range(tx_sig.shape[0]):
                 # Calculate clean signal for antenna pair
                 sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
                 # Iterate signal with gain
-                sig_x += alpha * sig
+                sig_x += alpha[n_ch] * sig
                 # Iterate signal without gain
                 sig_s += sig
                 # Iterate tau counter
-                tau_idx += 1  
-            
+                tau_idx += 1
+
             x_k.append(sig_x)
-            s_k.append(sig_s)  
-        
+            s_k.append(sig_s)
+
         x_k = np.array(x_k)
         s_k = np.array(s_k)
 
         # Get observation, add complex noise to signal
         if self.snr and add_noise:
             y_k = x_k + np.array(self.get_noise(x_k))
-        else:pyth
+        else:
             y_k = x_k
 
         return (s_k, y_k)
