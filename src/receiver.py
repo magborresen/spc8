@@ -47,7 +47,7 @@ class Receiver:
         # Add complex noise to signal
         if self.snr and add_noise:
             y_k = x_k + np.array(self.get_noise(x_k))
-        else:
+        else:pyth
             y_k = x_k
 
         return (s_k, y_k)
