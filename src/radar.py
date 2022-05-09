@@ -164,18 +164,36 @@ class Radar:
 
         return r_k
 
-    def get_attenuation(self, theta, target_rcs=0.04):
+    def get_attenuation(self, theta, target_rcs=0.04, rho=0.5):
         """
             Calculate alpha to attenuate the received signal
-        """
-        aperture = self.wavelength**2 * 0.5
-        gain = 4 * np.pi * aperture / self.wavelength**2
-        target_range = np.linalg.norm(theta[:2])
-        loss_atmospheric = 10**(self.atmos_loss_factor * target_range / 5000)
-        attenuation = (gain**2 * self.wavelength**2 * target_rcs /
-                      ((4*np.pi)**3 * target_range**4 * loss_atmospheric))
+            
+            The target range used in this function, is equal to the echo range.
+            
+            Args:
+                theta (np.ndarray): Target position
+                target_rcs (float): Radar-cross-section
+                rho (float): Effectivity of aperture (0 < rho <= 1)
 
-        return np.full(self.n_channels, attenuation)
+            Returns:
+                alpha (np.ndarray): Receiver attenuations
+        """
+        aperture = self.wavelength**2 * rho
+        gain = 4 * np.pi * aperture / self.wavelength**2
+        alpha = []
+        for rx_n in range(self.n_channels):
+            # Get range from receiver to target
+            target_range = np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 + (self.rx_pos[1,rx_n] - theta[1])**2)
+            
+            # Determine atmospheric loss (Richards, p. 43)
+            loss_atmospheric = 10**(self.atmos_loss_factor * target_range / 5000)
+            
+            # Calculate attenuation (Richards, p. 92)
+            attenuation = (gain**2 * self.wavelength**2 * target_rcs /
+                          ((4*np.pi)**3 * target_range**4 * loss_atmospheric))
+            alpha.append(attenuation)
+
+        return np.array(alpha)
 
     def create_time_vector(self):
         """
@@ -255,9 +273,10 @@ class Radar:
 
             Returns:
                 rx_sig (list): List of tdm rx signal
-        """
+        """   
         if alpha is None:
             alpha = self.get_attenuation(theta)
+
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
 
@@ -364,8 +383,7 @@ class Radar:
             n = np.arange(N)
             freq = n/T
             fft_range = freq * self.light_speed / (2 * self.transmitter.bandwidth/self.transmitter.t_chirp)
-            # axs[idx].plot(freq[:N//2]*const, 2.0/N * np.abs(fft_sig[:N//2]))
-            axs[idx].plot(fft_range[:N//2], 2.0/N * np.abs(fft_sig[:N//2]))
+            axs[idx].plot(fft_range, 2.0/N * np.abs(fft_sig))
             axs[idx].set_title(f"Channel: {idx}")
             if idx == maxPlots-1: 
                 break
@@ -376,13 +394,18 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=10, t_chirp=60e-6, chirps=2)
-    rx = Receiver(channels=10, snr=30)
+    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
+    rx = Receiver(channels=2, snr=30)
 
     radar = Radar(tx, rx, "tdm", 2000)
-    radar.plot_antennas()
-    #target = Target(radar.t_obs + radar.k_space)
-    #target_states = target.generate_states(k, 'linear_away')
-    #radar.plot_region(target_states, True)
-    #radar.observation(1, target_states[1], add_noise=False, plot_tx=False, plot_rx=False, plot_mixed=False, plot_fft=False)
-    # s, rx = radar.observation(1, target_states[1], plot_rx_tx=False)
+    target = Target(radar.t_obs + radar.k_space)
+    target_states = target.generate_states(k, 'linear_away')
+    radar.observation(1, target_states[1], 
+                      add_noise=False, plot_tx=False, plot_rx=False, 
+                      plot_mixed=False, plot_fft=False)
+    
+    # Check distance:
+    # print([np.sqrt((radar.rx_pos[0,rx_n] - target_states[0][0])**2 + (radar.rx_pos[1,rx_n] - target_states[0][1])**2) for rx_n in range(radar.n_channels)])
+
+    # radar.plot_antennas()
+    # radar.plot_region(target_states)
