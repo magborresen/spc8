@@ -35,15 +35,15 @@ class ParticleFilter():
             Returns:
                 no value
         """
-        # Initialize particle positions
+        # Initialize particle positions uniformly
         target_pos = np.random.uniform(low=0,
                               high=self.region,
                               size=(self.n_particles, 2, 1))
 
-        # Initialize particle velocities
-        target_velocity = np.full((self.n_particles, 2, 1), 5)
+        # Initialize particle velocities uniformly
+        target_velocity = np.uniform(low=1, high=22, size=(self.n_particles, 2, 1))
 
-        # Concatenate to create theta
+        # Concatenate to create the position and velocity vector theta
         self.theta_est = np.concatenate((target_pos, target_velocity), axis=1)
 
         # Initialize accelerations
@@ -90,7 +90,7 @@ class ParticleFilter():
         self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
                                       np.square(np.linalg.norm(y_k - x_k_i))))
 
-        #print(np.square(np.linalg.norm(y_k - x_k_i)))
+        print(np.square(np.linalg.norm(y_k - x_k_i)))
 
     def update_weights(self):
         """
