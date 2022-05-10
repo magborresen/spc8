@@ -3,7 +3,6 @@
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Receiver:
     """
@@ -16,13 +15,13 @@ class Receiver:
             no value
     """
 
-    def __init__(self, channels=5, f_sample=80e6, snr=None):
+    def __init__(self, channels=5, f_sample=80e6):
         self.f_sample = f_sample
-        self.snr = snr
         self.channels = channels
-        self.sigma_noise = snr
+        self.noise_figure = 12 # in dB
+        self.input_noise = -89.2 # At room temperature
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray, add_noise=True) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
@@ -50,7 +49,7 @@ class Receiver:
                 # Calculate clean signal for antenna pair
                 sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
                 # Iterate signal with gain
-                sig_x += alpha[n_ch] * sig
+                sig_x += sig * alpha[n_ch]
                 # Iterate signal without gain
                 sig_s += sig
                 # Iterate tau counter
@@ -62,11 +61,7 @@ class Receiver:
         x_k = np.array(x_k)
         s_k = np.array(s_k)
 
-        # Get observation, add complex noise to signal
-        if self.snr and add_noise:
-            y_k = x_k + np.array(self.get_noise(x_k))
-        else:
-            y_k = x_k
+        y_k = x_k
 
         return (s_k, y_k)
 
@@ -87,7 +82,6 @@ class Receiver:
 
             sigma_signal = np.var(signal)
             sigma_complex_noise = sigma_signal/SNR
-            self.sigma_noise = sigma_complex_noise
             sigma_real_noise = np.sqrt(sigma_complex_noise/2)
 
             v = np.random.normal(0, 1, size=(2, samples))

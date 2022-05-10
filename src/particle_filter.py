@@ -2,6 +2,7 @@
     Implementation of particle filter for target tracking.
 """
 import numpy as np
+import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 
@@ -41,7 +42,7 @@ class ParticleFilter():
                               size=(self.n_particles, 2, 1))
 
         # Initialize particle velocities uniformly
-        target_velocity = np.uniform(low=1, high=22, size=(self.n_particles, 2, 1))
+        target_velocity = np.random.uniform(low=1, high=22, size=(self.n_particles, 2, 1))
 
         # Concatenate to create the position and velocity vector theta
         self.theta_est = np.concatenate((target_pos, target_velocity), axis=1)
@@ -90,7 +91,7 @@ class ParticleFilter():
         self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
                                       np.square(np.linalg.norm(y_k - x_k_i))))
 
-        print(np.square(np.linalg.norm(y_k - x_k_i)))
+        #print(self.likelihoods[particle])
 
     def update_weights(self):
         """

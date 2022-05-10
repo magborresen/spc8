@@ -31,7 +31,7 @@ class Transmitter:
         """
             Transmit time division multiplexed signal. Each pulse will be
             modulated with a up-chirp.
-            
+
             Args:
                 t_vec (np.ndarray): Array containing sample times
 

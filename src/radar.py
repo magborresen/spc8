@@ -19,11 +19,12 @@ class Radar:
             no value
     """
 
-    def __init__(self, transmitter, receiver, mp_method, region):
+    def __init__(self, transmitter, receiver, mp_method, region, snr=None):
         self.transmitter = transmitter
         self.receiver = receiver
         self.mp_method = mp_method
         self.region = region
+        self.snr = snr
         self.n_channels = self.receiver.channels
         self.m_channels = self.transmitter.channels
         self.t_rx = 20e-6
@@ -167,9 +168,9 @@ class Radar:
     def get_attenuation(self, theta, target_rcs=0.04, rho=0.5):
         """
             Calculate alpha to attenuate the received signal
-            
+
             The target range used in this function, is equal to the echo range.
-            
+
             Args:
                 theta (np.ndarray): Target position
                 target_rcs (float): Radar-cross-section
@@ -184,16 +185,50 @@ class Radar:
         for rx_n in range(self.n_channels):
             # Get range from receiver to target
             target_range = np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 + (self.rx_pos[1,rx_n] - theta[1])**2)
-            
+
             # Determine atmospheric loss (Richards, p. 43)
             loss_atmospheric = 10**(self.atmos_loss_factor * target_range / 5000)
-            
+
             # Calculate attenuation (Richards, p. 92)
             attenuation = (gain**2 * self.wavelength**2 * target_rcs /
                           ((4*np.pi)**3 * target_range**4 * loss_atmospheric))
             alpha.append(attenuation)
 
         return np.array(alpha)
+
+    def add_awgn(self, signals):
+        """
+            Calculate and add circular symmetric white gaussian noise to the signal
+
+            Args:
+                sig (np.ndarray): The original signal
+                sig_var (np.ndarray): Variance of the part of the
+                                      observation containing the signal(s).
+
+            Returns:
+                sig_noise (np.ndarray): Signal with noise added.
+        """
+        signals_noise = []
+        for signal in signals:
+            sig_noise = np.copy(signal)
+            # Find where the signal is non zero
+            sig_idx = np.abs(signal) > 0
+            # Index the original signal
+            sig_only = signal[sig_idx]
+            # Find the variance (power of the signal)
+            sig_var = np.var(sig_only)
+            # Calculate linear SNR
+            lin_snr = 10.0**(self.snr / 10.0)
+            # Calculate the variance of the noise
+            n_var = sig_var / lin_snr
+            # Calculate the noise
+            noise = np.sqrt(n_var / 2) * (np.random.normal(size=(sig_only.shape)) +
+                                        1j*np.random.normal(size=(sig_only.shape)))
+            sig_noise[sig_idx] = signal[sig_idx] + noise
+            signals_noise.append(sig_noise)
+
+        return np.array(signals_noise), sig_var
+
 
     def create_time_vector(self):
         """
@@ -208,7 +243,7 @@ class Radar:
         t_vec = np.linspace(0, self.t_obs, self.samples_per_obs)
 
         return t_vec
-    
+
     def delay_signal(self, sig_vec, tau_vec):
         """
             Delay a list of signals, given a list of time-delays. A entire
@@ -290,8 +325,12 @@ class Radar:
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec,
                                              tx_sig_offset,
                                              self.transmitter.f_carrier,
-                                             alpha,
-                                             add_noise=add_noise)
+                                             alpha)
+
+        if add_noise:
+            rx_sig, sig_var = self.add_awgn(rx_sig)
+
+        print(np.var(rx_sig))
 
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
@@ -329,7 +368,8 @@ class Radar:
                 no value
         """
         maxPlots = 5
-        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots),
+                                ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         for idx, m_ch in enumerate(sig):
             axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
@@ -374,7 +414,8 @@ class Radar:
                 no value
         """
         maxPlots = 3
-        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots), ncols=1, figsize=(8, 5), sharex=True)
+        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots),
+                                ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         for idx, sig in enumerate(sig_vec):
             fft_sig = np.fft.fft(sig)
@@ -382,7 +423,8 @@ class Radar:
             T = N/(self.receiver.f_sample * self.oversample)
             n = np.arange(N)
             freq = n/T
-            fft_range = freq * self.light_speed / (2 * self.transmitter.bandwidth/self.transmitter.t_chirp)
+            fft_range = (freq * self.light_speed /
+                        (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
             axs[idx].plot(fft_range, 2.0/N * np.abs(fft_sig))
             axs[idx].set_title(f"Channel: {idx}")
             if idx == maxPlots-1: 
@@ -395,13 +437,13 @@ class Radar:
 if __name__ == '__main__':
     k = 10
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
-    rx = Receiver(channels=2, snr=30)
+    rx = Receiver(channels=2)
 
-    radar = Radar(tx, rx, "tdm", 2000)
+    radar = Radar(tx, rx, "tdm", 2000, snr=30)
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     radar.observation(1, target_states[1], 
-                      add_noise=False, plot_tx=False, plot_rx=False, 
+                      add_noise=True, plot_tx=False, plot_rx=True, 
                       plot_mixed=False, plot_fft=False)
     
     # Check distance:

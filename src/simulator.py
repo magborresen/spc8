@@ -31,18 +31,22 @@ class Simulator:
 
             # Update particle positions
             self.particle_filter.update_particle(particle, s_sig_i, rx_sig)
+            print(abs(self.particle_filter.alpha_est[particle]))
 
             _, x_k_i = self.radar.observation(k_obs,
                                               self.particle_filter.theta_est[particle],
                                               alpha=self.particle_filter.alpha_est[particle])
-            #print(self.particle_filter.alpha_est[particle])
 
             # Update likelihood for each particle
             self.particle_filter.update_likelihood(particle,
                                                    rx_sig,
                                                    x_k_i,
                                                    self.radar.receiver.sigma_noise)
-
+            plt.scatter(self.particle_filter.theta_est[particle][0], self.particle_filter.theta_est[particle][1])
+        plt.scatter(self.states[k_obs][0], self.states[k_obs][1], marker='x', label="True")
+        #plt.plot(s_sig[0].real, label="True")
+        plt.legend()
+        plt.show()
         # Update the weights for all particles
         self.particle_filter.update_weights()
 
@@ -50,11 +54,11 @@ class Simulator:
 if __name__ == '__main__':
     k = 10
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
-    rx = Receiver(channels=2, snr=30)
+    rx = Receiver(channels=2, snr=10)
 
     radar = Radar(tx, rx, "tdm", 2000)
     target = Target(radar.t_obs + radar.k_space)
-    pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=100)
+    pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=10)
 
     sim = Simulator(k, radar, target, pf)
     sim.target_estimate(0)
