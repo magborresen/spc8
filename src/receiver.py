@@ -18,6 +18,7 @@ class Receiver:
     def __init__(self, channels=5, f_sample=80e6):
         self.f_sample = f_sample
         self.channels = channels
+        self.sigma_noise = 0
         self.noise_figure = 12 # in dB
         self.input_noise = -89.2 # At room temperature
 

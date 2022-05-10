@@ -91,7 +91,7 @@ class ParticleFilter():
         self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
                                       np.square(np.linalg.norm(y_k - x_k_i))))
 
-        #print(self.likelihoods[particle])
+        print(np.square(np.linalg.norm(y_k - x_k_i)))
 
     def update_weights(self):
         """

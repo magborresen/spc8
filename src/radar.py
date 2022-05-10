@@ -227,7 +227,7 @@ class Radar:
             sig_noise[sig_idx] = signal[sig_idx] + noise
             signals_noise.append(sig_noise)
 
-        return np.array(signals_noise), sig_var
+        return np.array(signals_noise), np.var(noise)
 
 
     def create_time_vector(self):
@@ -311,6 +311,7 @@ class Radar:
         """   
         if alpha is None:
             alpha = self.get_attenuation(theta)
+            print(alpha)
 
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
@@ -328,9 +329,7 @@ class Radar:
                                              alpha)
 
         if add_noise:
-            rx_sig, sig_var = self.add_awgn(rx_sig)
-
-        print(np.var(rx_sig))
+            rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig)
 
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
@@ -439,12 +438,12 @@ if __name__ == '__main__':
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
     rx = Receiver(channels=2)
 
-    radar = Radar(tx, rx, "tdm", 2000, snr=30)
+    radar = Radar(tx, rx, "tdm", 2000, snr=1)
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     radar.observation(1, target_states[1], 
                       add_noise=True, plot_tx=False, plot_rx=True, 
-                      plot_mixed=False, plot_fft=False)
+                      plot_mixed=False, plot_fft=True)
     
     # Check distance:
     # print([np.sqrt((radar.rx_pos[0,rx_n] - target_states[0][0])**2 + (radar.rx_pos[1,rx_n] - target_states[0][1])**2) for rx_n in range(radar.n_channels)])
