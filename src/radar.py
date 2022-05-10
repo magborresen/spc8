@@ -308,10 +308,9 @@ class Radar:
 
             Returns:
                 rx_sig (list): List of tdm rx signal
-        """   
+        """
         if alpha is None:
             alpha = self.get_attenuation(theta)
-            print(alpha)
 
         # Find the time delay between the tx -> target -> rx
         tau_vec = self.time_delay(theta, self.t_vec)
@@ -351,7 +350,7 @@ class Radar:
         if plot_fft:
             self.plot_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
-        return (lpf_mixed_s_sig, lpf_mixed_sig)
+        return (lpf_mixed_s_sig, lpf_mixed_sig, alpha)
 
     def plot_sig(self, sig, title):
         """

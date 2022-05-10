@@ -81,7 +81,7 @@ class ParticleFilter():
 
         # Update alphas for each receiver
         for i in range(sk_n.shape[0]):
-            self.alpha_est[particle][i] = np.divide(np.dot(np.conjugate(sk_n[i]).T, yk_n[i]),
+            self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]).T, yk_n[i]) /
                                                  np.square(np.linalg.norm(sk_n[i])))
 
     def update_likelihood(self, particle, y_k, x_k_i, sigma_w):
