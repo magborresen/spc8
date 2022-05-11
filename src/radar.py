@@ -441,7 +441,7 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     radar.observation(1, target_states[1], 
-                      add_noise=True, plot_tx=False, plot_rx=True, 
+                      add_noise=True, plot_tx=False, plot_rx=True,
                       plot_mixed=False, plot_fft=True)
     
     # Check distance:

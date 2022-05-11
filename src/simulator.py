@@ -14,10 +14,11 @@ class Simulator:
         self.k_obs_tot = k_obs_tot
         self.radar = radar
         self.target = target
+        self.animate_pf = animate_pf
         self.states = self.target.generate_states(k_obs_tot, method='linear_away')
         self.particle_filter = particle_filter
         self.particle_filter.init_particles_uniform()
-        if animate_pf:
+        if self.animate_pf:
             plt.ion()
             # Setup the figure and axes...
             self.particle_fig, self.particle_ax = plt.subplots()
@@ -38,13 +39,12 @@ class Simulator:
 
             # Update particle positions
             self.particle_filter.update_particle(particle, s_sig_i, rx_sig)
-            #print(abs(self.particle_filter.alpha_est[particle]))
-            #print(self.particle_filter.alpha_est[particle])
 
             _, x_k_i, alpha = self.radar.observation(k_obs,
                                               self.particle_filter.theta_est[particle])
 
-            self.update_particle_animation()
+            if self.animate_pf:
+                self.update_particle_animation()
 
             # Update likelihood for each particle
             self.particle_filter.update_likelihood(particle,
@@ -79,7 +79,7 @@ class Simulator:
         plt.pause(0.1)
 
 if __name__ == '__main__':
-    region_size = 150
+    region_size = 200
     k = 10
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
     rx = Receiver(channels=2)
@@ -89,4 +89,5 @@ if __name__ == '__main__':
     pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=10, region=region_size)
 
     sim = Simulator(k, radar, target, pf)
-    plt.waitforbuttonpress()
+    sim.target_estimate(0)
+    #plt.waitforbuttonpress()
