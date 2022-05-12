@@ -31,6 +31,8 @@ class Simulator:
         """
         target_state = self.states[k_obs]
         _, rx_sig, alpha = self.radar.observation(k_obs, target_state, add_noise=True)
+        
+        pf.plot_particles(target_state)
 
         for particle in range(self.particle_filter.n_particles):
             # Create an observation with each particle location
@@ -52,8 +54,13 @@ class Simulator:
                                                    x_k_i,
                                                    self.radar.receiver.sigma_noise)
 
+        print(self.particle_filter.likelihoods)
+        self.particle_filter.likelihoods = -1*np.array(self.particle_filter.likelihoods)
+        self.particle_filter.likelihoods = self.particle_filter.likelihoods/np.linalg.norm(self.particle_filter.likelihoods)
+        for i in range(self.particle_filter.n_particles):
+            print(f'Particle {i}: {self.particle_filter.likelihoods[i]}')
         # Update the weights for all particles
-        #self.particle_filter.update_weights()
+        # self.particle_filter.update_weights()
 
     def setup_particle_animation(self):
         """
@@ -79,7 +86,7 @@ class Simulator:
         plt.pause(0.1)
 
 if __name__ == '__main__':
-    region_size = 200
+    region_size = 2000
     k = 10
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
     rx = Receiver(channels=2)
@@ -91,3 +98,5 @@ if __name__ == '__main__':
     sim = Simulator(k, radar, target, pf)
     sim.target_estimate(0)
     #plt.waitforbuttonpress()
+    
+    # pf.plot_particles()
