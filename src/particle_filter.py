@@ -3,6 +3,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import butter, sosfilt
 
 
 class ParticleFilter():
@@ -71,8 +72,8 @@ class ParticleFilter():
         """
         # Update positions
         self.theta_est[particle][:2] = (self.theta_est[particle][:2] +
-                                         self.theta_est[particle][2:] *
-                                         self._t_obs + self._t_obs**2 * self.acc[particle] / 2)
+                                          self.theta_est[particle][2:] *
+                                          self._t_obs + self._t_obs**2 * self.acc[particle] / 2)
 
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
@@ -87,9 +88,91 @@ class ParticleFilter():
         """
             Update the likelihood for each particle
         """
-        self.likelihoods[particle] = (np.exp(- 1 / sigma_w *
-                                      np.square(np.linalg.norm(y_k - x_k_i))))
+        y_k_fft = np.abs(self.fft_filter(y_k))
+        x_k_i_fft = np.abs(self.fft_filter(x_k_i))
 
+        temp = 0
+        for idx in range(y_k_fft.shape[0]):
+            temp += abs(np.trapz(y_k_fft[idx] - x_k_i_fft[idx]))
+
+        self.likelihoods[particle] = np.exp(-temp*1e12)
+        
+        range_vec = self.get_range(y_k)
+        print('Range difference (y_k)', range_vec[0] - range_vec[1])
+
+    def get_range(self, sig_vec):
+        """
+            Calculate fft for signals, find where the power is located and
+            neglect samples that is "offset" samples away from the desired
+            spike. 
+
+            Args:
+                sig_vec (np.ndarray): Collection of signals
+                offset (int): How many samples to take from either side
+
+            Returns:
+                filtered_vec (np.ndarray): Filtered signals
+        """        
+        range_vec = []
+        
+        for idx, sig in enumerate(sig_vec):
+            # Calculate FFT of signal
+            fft_sig = np.fft.fft(sig)
+            # Find sample with highest power
+            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
+            
+            N = len(fft_sig)
+            T = N/(80e6)
+            n = np.arange(N, dtype=np.float64)
+            freq = n/T
+            fft_range = (freq * 300e6 / (2.0 * 300e6/60e-6))
+            
+            range_vec.append(fft_range[sample])
+            
+        return np.array(range_vec)
+
+    def fft_filter(self, sig_vec, offset=100):
+        """
+            Calculate fft for signals, find where the power is located and
+            neglect samples that is "offset" samples away from the desired
+            spike. 
+
+            Args:
+                sig_vec (np.ndarray): Collection of signals
+                offset (int): How many samples to take from either side
+
+            Returns:
+                filtered_vec (np.ndarray): Filtered signals
+        """        
+
+        # Create the filter
+        nyq = 80e6
+        sos = butter(10, 8e6, fs=nyq, btype='low', analog=False, output='sos')
+
+        fft_sig_vec = []
+        
+        for idx, sig in enumerate(sig_vec):
+            # Calculate FFT of signal
+            fft_sig = np.fft.fft(sig)
+            # Find sample with highest power
+            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
+            # Check if sample offset becomes negative (Go with first samples)
+            if sample <= offset:
+                start = 0
+                stop = offset*2
+            # Check if sample offset becomes to large (Go with last samples)
+            elif sample+offset >= fft_sig.shape[0]:
+                start = sig.shape[0] - offset*2
+                stop = sig.shape[0]
+            # Else, take samples +-offset
+            else:
+                start = sample-offset
+                stop = sample+offset
+            
+            fft_sig = sosfilt(sos, fft_sig[start:stop])
+            fft_sig_vec.append(fft_sig)
+            
+        return np.array(fft_sig_vec)
 
     def update_weights(self):
         """
@@ -107,7 +190,7 @@ class ParticleFilter():
         self.weights = numerator / denominator
 
 
-    def plot_particles(self):
+    def plot_particles(self, target_state):
         """
             Plot the particle positions in the k'th observation
 
@@ -118,6 +201,15 @@ class ParticleFilter():
                 no value
         """
         plt.scatter(self.theta_est[:,0], self.theta_est[:,1])
+        plt.scatter(target_state[0],target_state[1])
+        # plt.scatter(self.region*0.5, 0, alpha=0.25, s=9e4)
+        
+        for i, txt in enumerate(self.theta_est):
+            plt.annotate(i, (self.theta_est[i,0] + self.region*5e-3, self.theta_est[i,1] + self.region*5e-3))
+        
+        plt.xlim((0,self.region))
+        plt.ylim((0,self.region))
+        plt.gca().set_aspect('equal')
         plt.xlabel("x position [m]")
         plt.ylabel("y position [m]")
         plt.title("Particle Locations")

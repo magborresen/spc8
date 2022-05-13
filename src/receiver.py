@@ -22,7 +22,7 @@ class Receiver:
         self.noise_figure = 12 # in dB
         self.input_noise = -89.2 # At room temperature
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
@@ -40,6 +40,8 @@ class Receiver:
         x_k = []
         s_k = []
         tau_idx = 0
+        
+        t_chirp = 60e-6
 
         for n_ch in range(self.channels):
             # Set signals to 0
@@ -47,8 +49,17 @@ class Receiver:
             sig_s = 0
 
             for m_ch in range(tx_sig.shape[0]):
+                
+                tau_sample = int(self.f_sample * t_chirp * tau_idx)
+                
+                offset = tau[tau_idx][tau_sample]
+                # Get delay in number of samples
+                delay = round(offset / t_vec[1])
+                # Delay signal by desired number of samples (pad with 0)
+                tx_sig_offset = np.r_[np.full(delay, 0), tx_sig[m_ch][:-delay]]
+
                 # Calculate clean signal for antenna pair
-                sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
+                sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig_offset
                 # Iterate signal with gain
                 sig_x += sig * alpha[n_ch]
                 # Iterate signal without gain
