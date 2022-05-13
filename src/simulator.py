@@ -53,12 +53,12 @@ class Simulator:
                                                    rx_sig,
                                                    x_k_i,
                                                    self.radar.receiver.sigma_noise)
-
-        print(self.particle_filter.likelihoods)
-        self.particle_filter.likelihoods = -1*np.array(self.particle_filter.likelihoods)
-        self.particle_filter.likelihoods = self.particle_filter.likelihoods/np.linalg.norm(self.particle_filter.likelihoods)
-        for i in range(self.particle_filter.n_particles):
-            print(f'Particle {i}: {self.particle_filter.likelihoods[i]}')
+        
+        # print(self.particle_filter.likelihoods)
+        # self.particle_filter.likelihoods = np.array(self.particle_filter.likelihoods)
+        # self.particle_filter.likelihoods = self.particle_filter.likelihoods/np.max(self.particle_filter.likelihoods)
+        # for i in range(self.particle_filter.n_particles):
+            # print(f'Particle {i}: {self.particle_filter.likelihoods[i]}')
         # Update the weights for all particles
         # self.particle_filter.update_weights()
 
@@ -88,12 +88,12 @@ class Simulator:
 if __name__ == '__main__':
     region_size = 2000
     k = 10
-    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
+    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=10)
     rx = Receiver(channels=2)
 
-    radar = Radar(tx, rx, "tdm", region_size, snr=30)
+    radar = Radar(tx, rx, "tdm", region_size, snr=50)
     target = Target(radar.t_obs + radar.k_space)
-    pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=10, region=region_size)
+    pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=5, region=region_size)
 
     sim = Simulator(k, radar, target, pf)
     sim.target_estimate(0)

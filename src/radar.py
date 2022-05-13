@@ -66,7 +66,7 @@ class Radar:
                                             self.n_channels * self.wavelength/2,
                                             self.n_channels)),
                                 np.zeros(self.n_channels)])
-
+        
     def plot_antennas(self) -> None:
         """ Plot antenna postions in 2D space
 
@@ -441,11 +441,11 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     radar.observation(1, target_states[1], 
-                      add_noise=True, plot_tx=False, plot_rx=True,
+                      add_noise=True, plot_tx=True, plot_rx=True,
                       plot_mixed=False, plot_fft=True)
     
     # Check distance:
-    # print([np.sqrt((radar.rx_pos[0,rx_n] - target_states[0][0])**2 + (radar.rx_pos[1,rx_n] - target_states[0][1])**2) for rx_n in range(radar.n_channels)])
+    print([np.sqrt((radar.rx_pos[0,rx_n] - target_states[0][0])**2 + (radar.rx_pos[1,rx_n] - target_states[0][1])**2) for rx_n in range(radar.n_channels)])
 
     # radar.plot_antennas()
     # radar.plot_region(target_states)

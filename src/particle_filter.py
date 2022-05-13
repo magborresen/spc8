@@ -3,6 +3,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import butter, sosfilt
 
 
 class ParticleFilter():
@@ -74,8 +75,6 @@ class ParticleFilter():
                                           self.theta_est[particle][2:] *
                                           self._t_obs + self._t_obs**2 * self.acc[particle] / 2)
 
-        # self.theta_est[particle][:2] = np.array([[1000],[300]])
-
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
                                         self._t_obs * self.acc[particle])
@@ -89,15 +88,29 @@ class ParticleFilter():
         """
             Update the likelihood for each particle
         """
-        y_k_fft, x_k_i_fft = self.fft_filter(y_k, x_k_i)
-        # print(f'\nnorm({particle})', np.linalg.norm(y_k_fft - x_k_i_fft))
-        
-        self.likelihoods[particle] = ((- 1 / sigma_w *
-                                      np.square(np.linalg.norm(y_k_fft - x_k_i_fft))))
-        
-        # print(f'likelihood({particle})', self.likelihoods[particle])
+        y_k_fft = np.abs(self.fft_filter(y_k))
+        x_k_i_fft = np.abs(self.fft_filter(x_k_i))
 
-    def fft_filter(self, y_k, x_k_i, offset=1000):
+
+        # print(y_k_fft.shape, x_k_i_fft.shape, (y_k_fft - x_k_i_fft).shape)
+        temp = 0
+        for idx in range(y_k_fft.shape[0]):
+            temp += abs(np.trapz(y_k_fft[idx] - x_k_i_fft[idx]))
+        # print(temp)
+
+        # self.likelihoods[particle] = np.exp(-temp*1e14)
+        self.likelihoods[particle] = np.exp(-temp*1e12)
+        
+        # self.likelihoods[particle] = (1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft)))
+        # self.likelihoods[particle] = np.exp((- 1 / (sigma_w*1e19**2) *
+        #                               1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft))))
+
+        # print((- 1 / (sigma_w*1e19**2) * 1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft))))        
+        # print(f'likelihood({particle})', self.likelihoods[particle])
+        print('Range, y_k', self.get_range(y_k))
+        print('Range, x_k_i', self.get_range(x_k_i))
+
+    def get_range(self, sig_vec):
         """
             Calculate fft for signals, find where the power is located and
             neglect samples that is "offset" samples away from the desired
@@ -110,21 +123,59 @@ class ParticleFilter():
             Returns:
                 filtered_vec (np.ndarray): Filtered signals
         """        
-        y_k_fft = []
-        x_k_i_fft = []
+        range_vec = []
         
-        for idx, (y, x) in enumerate(zip(y_k, x_k_i)):
+        for idx, sig in enumerate(sig_vec):
             # Calculate FFT of signal
-            fft_y = np.fft.fft(y)
-            fft_x = np.fft.fft(x)
+            fft_sig = np.fft.fft(sig)
             # Find sample with highest power
-            sample = np.argmax(2.0/len(fft_y) * np.abs(fft_y))
+            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
+            
+            N = len(fft_sig)
+            T = N/(80e6)
+            n = np.arange(N, dtype=np.float64)
+            freq = n/T
+            fft_range = (freq * 300e6 / (2.0 * 300e6/60e-6))
+            
+            print(freq[1201] - freq[1200])
+            print(fft_range[1201] - fft_range[1200])
+            range_vec.append(fft_range[sample])
+            
+            print('FREQ', freq[sample])
+            
+        return np.array(range_vec)
+
+    def fft_filter(self, sig_vec, offset=100):
+        """
+            Calculate fft for signals, find where the power is located and
+            neglect samples that is "offset" samples away from the desired
+            spike. 
+
+            Args:
+                sig_vec (np.ndarray): Collection of signals
+                offset (int): How many samples to take from either side
+
+            Returns:
+                filtered_vec (np.ndarray): Filtered signals
+        """        
+
+        # Create the filter
+        nyq = 80e6
+        sos = butter(10, 8e6, fs=nyq, btype='low', analog=False, output='sos')
+
+        fft_sig_vec = []
+        
+        for idx, sig in enumerate(sig_vec):
+            # Calculate FFT of signal
+            fft_sig = np.fft.fft(sig)
+            # Find sample with highest power
+            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
             # Check if sample offset becomes negative (Go with first samples)
             if sample <= offset:
                 start = 0
                 stop = offset*2
             # Check if sample offset becomes to large (Go with last samples)
-            elif sample+offset >= fft_y.shape[0]:
+            elif sample+offset >= fft_sig.shape[0]:
                 start = sig.shape[0] - offset*2
                 stop = sig.shape[0]
             # Else, take samples +-offset
@@ -132,10 +183,10 @@ class ParticleFilter():
                 start = sample-offset
                 stop = sample+offset
             
-            y_k_fft.append(fft_y[start:stop])
-            x_k_i_fft.append(fft_x[start:stop])
+            fft_sig = sosfilt(sos, fft_sig[start:stop])
+            fft_sig_vec.append(fft_sig)
             
-        return np.array(y_k_fft), np.array(x_k_i_fft)
+        return np.array(fft_sig_vec)
 
     def update_weights(self):
         """
@@ -165,12 +216,14 @@ class ParticleFilter():
         """
         plt.scatter(self.theta_est[:,0], self.theta_est[:,1])
         plt.scatter(target_state[0],target_state[1])
+        # plt.scatter(self.region*0.5, 0, alpha=0.25, s=9e4)
         
         for i, txt in enumerate(self.theta_est):
-            plt.annotate(i, (self.theta_est[i,0], self.theta_est[i,1]))
+            plt.annotate(i, (self.theta_est[i,0] + self.region*5e-3, self.theta_est[i,1] + self.region*5e-3))
         
         plt.xlim((0,self.region))
         plt.ylim((0,self.region))
+        plt.gca().set_aspect('equal')
         plt.xlabel("x position [m]")
         plt.ylabel("y position [m]")
         plt.title("Particle Locations")

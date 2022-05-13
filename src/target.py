@@ -47,7 +47,7 @@ class Target():
 
         # Linear, away from origin:
         elif method == 'linear_away':
-            self.init_state = np.array([[1000], [1500],
+            self.init_state = np.array([[500], [500],
                                         [16], [16]])
             ax = np.zeros((1,k_tot))
             ay = np.zeros((1,k_tot))
