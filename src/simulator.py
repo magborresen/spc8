@@ -54,11 +54,10 @@ class Simulator:
                                                    x_k_i,
                                                    self.radar.receiver.sigma_noise)
         
-        # print(self.particle_filter.likelihoods)
-        # self.particle_filter.likelihoods = np.array(self.particle_filter.likelihoods)
-        # self.particle_filter.likelihoods = self.particle_filter.likelihoods/np.max(self.particle_filter.likelihoods)
-        # for i in range(self.particle_filter.n_particles):
-            # print(f'Particle {i}: {self.particle_filter.likelihoods[i]}')
+        self.particle_filter.likelihoods = np.array(self.particle_filter.likelihoods)
+        self.particle_filter.likelihoods = self.particle_filter.likelihoods/np.max(self.particle_filter.likelihoods)
+        for i in range(self.particle_filter.n_particles):
+            print(f'Particle {i}: {self.particle_filter.likelihoods[i]}')
         # Update the weights for all particles
         # self.particle_filter.update_weights()
 

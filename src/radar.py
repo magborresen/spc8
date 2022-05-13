@@ -57,9 +57,10 @@ class Radar:
         """
         self.tx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 -
                                   np.linspace(self.wavelength / 2,
-                                              self.m_channels * self.wavelength/2,
+                                              self.m_channels * self.wavelength / 2,
                                               self.m_channels)),
                                   np.zeros(self.m_channels)])
+        print(self.tx_pos)
 
         self.rx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 +
                                 np.linspace(self.wavelength / 2,
@@ -244,35 +245,6 @@ class Radar:
 
         return t_vec
 
-    def delay_signal(self, sig_vec, tau_vec):
-        """
-            Delay a list of signals, given a list of time-delays. A entire
-            transmitted signal is delayed by the first corresponding tau. It
-            is assumed that the target does not move within t_obs.
-
-            Args:
-                sig_vec (np.ndarray): Collection of signals
-                tau_vec (np.ndarray): Collection of time-delays
-
-            Returns:
-                output_vec (np.ndarray): Collection of delayed signals
-        """
-        output_vec = []
-        for idx, sig in enumerate(sig_vec):
-            # Get offset in seconds, based on first tau from each transmitter
-            offset = tau_vec[idx * self.n_channels][0]
-
-            # Get delay in number of samples
-            delay = round(offset / self.t_vec[1])
-
-            # Delay signal by desired number of samples (pad with 0)
-            output = np.r_[np.full(delay, 0), sig[:-delay]]
-
-            output_vec.append(output)
-
-        return np.array(output_vec)
-
-
     def butter_lowpass_filter(self, sigs, cutoff, order=10):
         """
             Create and apply a low-pass Butterworth filter on multiple signals
@@ -319,13 +291,14 @@ class Radar:
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
         # Delay the originally transmitted signal (starting at tau)
-        tx_sig_offset = self.delay_signal(tx_sig, tau_vec)
+        # tx_sig_offset = self.delay_signal(tx_sig, tau_vec)
 
         # Create the received signal
         s_sig, rx_sig = self.receiver.rx_tdm(tau_vec,
-                                             tx_sig_offset,
+                                             tx_sig,
                                              self.transmitter.f_carrier,
-                                             alpha)
+                                             alpha,
+                                             self.t_vec)
 
         if add_noise:
             rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig)
@@ -437,7 +410,7 @@ if __name__ == '__main__':
     tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
     rx = Receiver(channels=2)
 
-    radar = Radar(tx, rx, "tdm", 2000, snr=1)
+    radar = Radar(tx, rx, "tdm", 2000, snr=50)
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
     radar.observation(1, target_states[1], 

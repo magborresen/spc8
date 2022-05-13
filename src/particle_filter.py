@@ -91,24 +91,14 @@ class ParticleFilter():
         y_k_fft = np.abs(self.fft_filter(y_k))
         x_k_i_fft = np.abs(self.fft_filter(x_k_i))
 
-
-        # print(y_k_fft.shape, x_k_i_fft.shape, (y_k_fft - x_k_i_fft).shape)
         temp = 0
         for idx in range(y_k_fft.shape[0]):
             temp += abs(np.trapz(y_k_fft[idx] - x_k_i_fft[idx]))
-        # print(temp)
 
-        # self.likelihoods[particle] = np.exp(-temp*1e14)
         self.likelihoods[particle] = np.exp(-temp*1e12)
         
-        # self.likelihoods[particle] = (1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft)))
-        # self.likelihoods[particle] = np.exp((- 1 / (sigma_w*1e19**2) *
-        #                               1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft))))
-
-        # print((- 1 / (sigma_w*1e19**2) * 1e19*np.square(np.linalg.norm(y_k_fft - x_k_i_fft))))        
-        # print(f'likelihood({particle})', self.likelihoods[particle])
-        print('Range, y_k', self.get_range(y_k))
-        print('Range, x_k_i', self.get_range(x_k_i))
+        range_vec = self.get_range(y_k)
+        print('Range difference (y_k)', range_vec[0] - range_vec[1])
 
     def get_range(self, sig_vec):
         """
@@ -137,11 +127,7 @@ class ParticleFilter():
             freq = n/T
             fft_range = (freq * 300e6 / (2.0 * 300e6/60e-6))
             
-            print(freq[1201] - freq[1200])
-            print(fft_range[1201] - fft_range[1200])
             range_vec.append(fft_range[sample])
-            
-            print('FREQ', freq[sample])
             
         return np.array(range_vec)
 
