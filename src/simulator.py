@@ -88,6 +88,7 @@ if __name__ == '__main__':
     target = Target(radar.t_obs + radar.k_space)
     pf = ParticleFilter(radar.t_obs + radar.k_space, rx.channels, n_particles=10, region=region_size)
 
-    sim = Simulator(k, radar, target, pf)
-    sim.target_estimate(0)
-    #plt.waitforbuttonpress()
+    sim = Simulator(k, radar, target, pf, animate_pf=True)
+    for i in range(k):
+        sim.target_estimate(i)
+    plt.waitforbuttonpress()
