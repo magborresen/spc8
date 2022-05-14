@@ -40,7 +40,6 @@ class Receiver:
         x_k = []
         s_k = []
         tau_idx = 0
-        
         t_chirp = 60e-6
 
         for n_ch in range(self.channels):
@@ -49,9 +48,9 @@ class Receiver:
             sig_s = 0
 
             for m_ch in range(tx_sig.shape[0]):
-                
+                # Find which tau to use for the signal offset
                 tau_sample = int(self.f_sample * t_chirp * tau_idx)
-                
+                # Find the signal offset in samples
                 offset = tau[tau_idx][tau_sample]
                 # Get delay in number of samples
                 delay = round(offset / t_vec[1])
@@ -76,29 +75,3 @@ class Receiver:
         y_k = x_k
 
         return (s_k, y_k)
-
-    def get_noise(self, signals):
-        """
-            Add noise to received signals
-
-            Args:
-                signals (np.ndarray): Received signals
-
-            Returns:
-                signals (np.ndarray): Received signals with added noise
-        """
-        noise = []
-        for signal in signals:
-            samples = len(signal)
-            SNR = 10.0**(self.snr/10.0)
-
-            sigma_signal = np.var(signal)
-            sigma_complex_noise = sigma_signal/SNR
-            sigma_real_noise = np.sqrt(sigma_complex_noise/2)
-
-            v = np.random.normal(0, 1, size=(2, samples))
-            W = sigma_real_noise * v[0,:] + 1j * sigma_real_noise * v[1,:]
-
-            noise.append(W)
-
-        return noise
