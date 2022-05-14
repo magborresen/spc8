@@ -60,14 +60,13 @@ class Radar:
                                               self.m_channels * self.wavelength / 2,
                                               self.m_channels)),
                                   np.zeros(self.m_channels)])
-        print(self.tx_pos)
 
         self.rx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 +
                                 np.linspace(self.wavelength / 2,
                                             self.n_channels * self.wavelength/2,
                                             self.n_channels)),
                                 np.zeros(self.n_channels)])
-        
+
     def plot_antennas(self) -> None:
         """ Plot antenna postions in 2D space
 
@@ -117,6 +116,22 @@ class Radar:
         plt.legend()
         plt.show()
 
+    def get_target_true_dist(self, theta):
+        """
+            Get the true distance of the target to each receiver antenna
+
+            Args:
+                theta (np.ndarray): Position and velocity vector of the target
+
+            Returns:
+                true_dist (list): List of eucledian distances to each of the receiver antennas
+        """
+        true_dist = [np.sqrt((radar.rx_pos[0,rx_n] - theta[0][0])**2 +
+                             (radar.rx_pos[1,rx_n] - theta[0][1])**2)
+                    for rx_n in range(radar.n_channels)]
+
+        return true_dist
+
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to 
@@ -135,8 +150,11 @@ class Radar:
         tau = []
         for rx_n in range(self.n_channels):
             for tx_m in range(self.m_channels):
-                d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
-                d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
+                d_tx = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 +
+                               (self.tx_pos[1,tx_m] - traj[1].T)**2)
+                d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 +
+                               (self.rx_pos[1,rx_n] - traj[1].T)**2)
+
                 tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
                 tau.append(tau_kmn)
 
@@ -185,7 +203,8 @@ class Radar:
         alpha = []
         for rx_n in range(self.n_channels):
             # Get range from receiver to target
-            target_range = np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 + (self.rx_pos[1,rx_n] - theta[1])**2)
+            target_range = np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 +
+                                   (self.rx_pos[1,rx_n] - theta[1])**2)
 
             # Determine atmospheric loss (Richards, p. 43)
             loss_atmospheric = 10**(self.atmos_loss_factor * target_range / 5000)
@@ -266,7 +285,9 @@ class Radar:
             sigs_filtered.append(sosfilt(sos, sig))
         return np.array(sigs_filtered)
 
-    def observation(self, k_obs, theta, alpha=None, add_noise=False, plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False, plot_fft=False):
+    def observation(self, k_obs, theta, alpha=None, add_noise=False,
+                    plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
+                    plot_fft=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -307,9 +328,11 @@ class Radar:
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
         mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
 
-        # Low-pass filter signals
-        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1) # With attenuation
-        lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1) # Without attenuation
+        ### Low-pass filter signals ###
+        # With attenuation (alpha)
+        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1)
+        # Without attenuation (alpha)
+        lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1)
 
         # Plotters
         if plot_tx:
@@ -338,14 +361,14 @@ class Radar:
             Returns:
                 no value
         """
-        maxPlots = 5
-        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots),
+        max_plots = 5
+        fig, axs = plt.subplots(nrows=min(self.m_channels, max_plots),
                                 ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         for idx, m_ch in enumerate(sig):
             axs[idx].plot(self.t_vec / 1e-6, m_ch.real)
             axs[idx].set_title(f"Channel: {idx}")
-            if idx == maxPlots-1: 
+            if idx == max_plots-1: 
                 break
         plt.xlabel("Time [µs]")
         fig.suptitle(title)
@@ -384,8 +407,8 @@ class Radar:
             Returns:
                 no value
         """
-        maxPlots = 3
-        fig, axs = plt.subplots(nrows=min(self.m_channels, maxPlots),
+        max_plots = 3
+        fig, axs = plt.subplots(nrows=min(self.m_channels, max_plots),
                                 ncols=1, figsize=(8, 5), sharex=True)
         plt.subplots_adjust(hspace=0.5)
         for idx, sig in enumerate(sig_vec):
@@ -398,7 +421,7 @@ class Radar:
                         (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
             axs[idx].plot(fft_range, 2.0/N * np.abs(fft_sig))
             axs[idx].set_title(f"Channel: {idx}")
-            if idx == maxPlots-1: 
+            if idx == max_plots-1: 
                 break
         plt.xlabel("Range [m]")
         fig.suptitle(title)
@@ -413,12 +436,6 @@ if __name__ == '__main__':
     radar = Radar(tx, rx, "tdm", 2000, snr=50)
     target = Target(radar.t_obs + radar.k_space)
     target_states = target.generate_states(k, 'linear_away')
-    radar.observation(1, target_states[1], 
+    radar.observation(1, target_states[1],
                       add_noise=True, plot_tx=True, plot_rx=True,
                       plot_mixed=False, plot_fft=True)
-    
-    # Check distance:
-    print([np.sqrt((radar.rx_pos[0,rx_n] - target_states[0][0])**2 + (radar.rx_pos[1,rx_n] - target_states[0][1])**2) for rx_n in range(radar.n_channels)])
-
-    # radar.plot_antennas()
-    # radar.plot_region(target_states)
