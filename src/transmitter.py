@@ -15,7 +15,9 @@ class Transmitter:
             no value
     """
 
-    def __init__(self, channels=5, f_carrier=10e9, t_chirp=60e-6, chirps=2, bandwidth=300e6, tx_power=30, mod="lfm", prp=0.5, mult="tdm"):
+    def __init__(self, channels=5, f_carrier=30e9, t_chirp=60e-6,
+                 chirps=2, bandwidth=500e6, tx_power=30, mod="lfm",
+                 prp=0.5, mult="tdm"):
         self.f_carrier = f_carrier
         self.bandwidth = bandwidth
         self.tx_power_db = tx_power
@@ -38,20 +40,24 @@ class Transmitter:
             Returns:
                 tx_sigs (np.ndarray): Collection of transmitted signals
         """
-
-        start_times = np.array([[(self.t_chirp*tx) + self.t_chirp*self.channels*chirp for chirp in range(self.chirps)] for tx in range(self.channels)])
+        # Find the tx start times
+        start_times = np.array([[(self.t_chirp*tx) + self.t_chirp*self.channels*chirp
+                               for chirp in range(self.chirps)]
+                               for tx in range(self.channels)])
         tx_sigs = []
 
-        for tx in range(self.channels):
+        for tx_ch in range(self.channels):
             # Create an empty array for the tx signal
             tx_sig = np.zeros(t_vec.shape, dtype=np.complex128)
 
             for chirp in range(self.chirps):
-                # Find which times in t_vec that corresponds to transmitting with a given transmitter
-                tx_times = ((start_times[tx][chirp] <= t_vec) & (t_vec <= self.t_chirp + start_times[tx][chirp]))
+                # Find which times in t_vec matches a given transmitter transmitter
+                tx_times = ((start_times[tx_ch][chirp] <= t_vec) &
+                            (t_vec <= self.t_chirp + start_times[tx_ch][chirp]))
 
                 # Create the chirp at the transmitter times
-                tx_sig[tx_times] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp * (t_vec[tx_times]-t_vec[tx_times][0])**2)
+                tx_sig[tx_times] = np.exp(1j*np.pi * self.bandwidth/self.t_chirp *
+                                          (t_vec[tx_times]-t_vec[tx_times][0])**2)
 
             tx_sigs.append(self.tx_power * tx_sig)
 
