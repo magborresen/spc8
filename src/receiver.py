@@ -20,6 +20,7 @@ class Receiver:
         self.channels = channels
         self.sigma_noise = 0
         self.noise_figure = 12 # in dB
+        self.temp = 293.15 # in Kelvin (=> 20 celcius)
         self.input_noise = -89.2 # At room temperature
 
     def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray) -> np.ndarray:
@@ -50,8 +51,10 @@ class Receiver:
             for m_ch in range(tx_sig.shape[0]):
                 # Find which tau to use for the signal offset
                 tau_sample = int(self.f_sample * t_chirp * tau_idx)
+                
                 # Find the signal offset in samples
                 offset = tau[tau_idx][tau_sample]
+
                 # Get delay in number of samples
                 delay = round(offset / t_vec[1])
                 # Delay signal by desired number of samples (pad with 0)

@@ -100,7 +100,7 @@ class ParticleFilter():
         range_vec = self.get_range(y_k)
         print('Range difference (y_k)', range_vec[0] - range_vec[1])
 
-    def get_range(self, sig_vec):
+    def get_range(self, sig_vec, slope):
         """
             Calculate fft for signals, find where the power is located and
             neglect samples that is "offset" samples away from the desired
@@ -125,7 +125,7 @@ class ParticleFilter():
             T = N/(80e6)
             n = np.arange(N, dtype=np.float64)
             freq = n/T
-            fft_range = (freq * 300e6 / (2.0 * 300e6/60e-6))
+            fft_range = (freq * 300e6 / (2.0 * slope))
             
             range_vec.append(fft_range[sample])
             
