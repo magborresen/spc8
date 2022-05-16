@@ -116,9 +116,9 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def get_target_true_dist(self, theta):
+    def get_true_dist(self, theta):
         """
-            Get the true distance of the target to each receiver antenna
+            Get the true distance between target or particle to receivers
 
             Args:
                 theta (np.ndarray): Position and velocity vector of the target
@@ -126,9 +126,9 @@ class Radar:
             Returns:
                 true_dist (list): List of eucledian distances to each of the receiver antennas
         """
-        true_dist = [np.sqrt((radar.rx_pos[0,rx_n] - theta[0][0])**2 +
-                             (radar.rx_pos[1,rx_n] - theta[0][1])**2)
-                    for rx_n in range(radar.n_channels)]
+        true_dist = [np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 +
+                             (self.rx_pos[1,rx_n] - theta[1])**2)
+                    for rx_n in range(self.n_channels)]
 
         return true_dist
 

@@ -3,6 +3,8 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.stats as stats
+from filterpy.monte_carlo import systematic_resample
 from scipy.signal import butter, sosfilt
 
 
@@ -23,6 +25,7 @@ class ParticleFilter():
         self.acc = None
         self.weights = None
         self.likelihoods = None
+        self.light_speed = 300e6
         self.init_particles_uniform()
         self.init_weights()
 
@@ -66,10 +69,11 @@ class ParticleFilter():
         self.weights = np.full((self.n_particles, 1), w_value)
 
 
-    def update_particle(self, particle, sk_n: np.ndarray, yk_n: np.ndarray):
+    def predict_particle(self, particle, sk_n: np.ndarray, yk_n: np.ndarray):
         """
             Update particle parameters for the k'th observation
         """
+
         # Update positions
         self.theta_est[particle][:2] = (self.theta_est[particle][:2] +
                                           self.theta_est[particle][2:] *
@@ -84,7 +88,7 @@ class ParticleFilter():
             self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]), yk_n[i].T) /
                                                  np.square(np.linalg.norm(sk_n[i])))
 
-    def update_likelihood(self, particle, y_k, x_k_i, sigma_w):
+    def update_likelihood_fft(self, particle, y_k, x_k_i):
         """
             Update the likelihood for each particle
         """
@@ -96,39 +100,88 @@ class ParticleFilter():
             temp += abs(np.trapz(y_k_fft[idx] - x_k_i_fft[idx]))
 
         self.likelihoods[particle] = np.exp(-temp*1e12)
-        
+
         range_vec = self.get_range(y_k)
         print('Range difference (y_k)', range_vec[0] - range_vec[1])
 
-    def get_range(self, sig_vec):
+
+    def get_likelihood(self, particle, target_range, particle_range):
         """
-            Calculate fft for signals, find where the power is located and
-            neglect samples that is "offset" samples away from the desired
-            spike. 
+            Update the likelihood for each particle
+        """
+        # Compute the range FFT of the particle
+        #particle_range = self.get_range(x_k_i)
+
+        self.likelihoods[particle] = stats.norm(particle_range[0], 100).pdf(target_range)
+
+    def update_weights(self):
+        """
+            Update the posterior probability for each particle target signal
 
             Args:
-                sig_vec (np.ndarray): Collection of signals
-                offset (int): How many samples to take from either side
+                no value
 
             Returns:
-                filtered_vec (np.ndarray): Filtered signals
-        """        
+                no value
+        """
+
+        numerator = self.weights * self.likelihoods
+        denominator = np.sum(self.weights * self.likelihoods)
+
+        self.weights = numerator / denominator
+
+    def resample(self, strat="systemic"):
+        """
+            Resamples the weights using filterpy functions
+        """
+
+        if strat=="systemic":
+            indexes = systematic_resample(self.weights)
+
+        return indexes
+
+    def neff(self):
+        """
+            Calculate the number of effective particles (weights)
+        """
+
+        return 1. / np.sum(np.square(self.weights))
+
+    def resample_from_index(self, indexes):
+        """
+            Resample the particles from the indexes found by the resampling scheme.
+        """
+        self.theta_est[:] = self.theta_est[indexes]
+        self.theta_est[:,2] *= np.random.normal(loc=0, scale=100, size=self.theta_est[:,2].shape)
+
+        self.weights.resize(self.n_particles, 1)
+        self.weights.fill(1.0 / self.n_particles)
+
+    def get_range(self, sig_vec):
+        """
+            Compute the range FFT of given FMCW IF signal.
+
+            Args:
+                sig_vec (np.ndarray): Array of received signals
+
+            Returns:
+                range_vec (np.ndarray): Vector of scalar ranges for each received signal
+        """
         range_vec = []
-        
-        for idx, sig in enumerate(sig_vec):
+
+        for _, sig in enumerate(sig_vec):
             # Calculate FFT of signal
             fft_sig = np.fft.fft(sig)
             # Find sample with highest power
             sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
-            
-            N = len(fft_sig)
-            T = N/(80e6)
-            n = np.arange(N, dtype=np.float64)
-            freq = n/T
-            fft_range = (freq * 300e6 / (2.0 * 300e6/60e-6))
-            
+
+            fft_samples = len(fft_sig)
+            fft_times = fft_samples/(80e6)
+            fft_idx = np.arange(fft_samples, dtype=np.float64)
+            freq = fft_idx/fft_times
+            fft_range = (freq * self.light_speed / (2.0 * 300e6/60e-6))
             range_vec.append(fft_range[sample])
-            
+
         return np.array(range_vec)
 
     def fft_filter(self, sig_vec, offset=100):
@@ -173,21 +226,6 @@ class ParticleFilter():
             fft_sig_vec.append(fft_sig)
             
         return np.array(fft_sig_vec)
-
-    def update_weights(self):
-        """
-            Update the posterior probability for each particle target signal
-
-            Args:
-                y_k (np.ndarray): Observed signal for observation k
-                x_k (np.ndarray): Target signal for observation k
-                sigma_w (float): Signal noise variance
-        """
-
-        numerator = self.weights * self.likelihoods
-        denominator = np.sum(self.weights * self.likelihoods)
-
-        self.weights = numerator / denominator
 
 
     def plot_particles(self, target_state):
@@ -240,5 +278,4 @@ if __name__ == '__main__':
     pf = ParticleFilter(1.33e-7 + 1.8734e-5, 1000)
     pf.init_particles_uniform()
     pf.init_weights()
-    pf.plot_particles()
     
