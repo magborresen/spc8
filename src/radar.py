@@ -7,7 +7,8 @@ from scipy.signal import butter, sosfilt
 from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
-
+from scipy.constants import k as Boltzman
+from scipy.signal import correlate
 
 class Radar:
     """
@@ -62,7 +63,7 @@ class Radar:
                                   np.zeros(self.m_channels)])
 
         self.rx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 +
-                                np.linspace(self.wavelength / 2,
+                                np.linspace(self.wavelength * 2,
                                             self.n_channels * self.wavelength/2,
                                             self.n_channels)),
                                 np.zeros(self.n_channels)])
@@ -156,6 +157,7 @@ class Radar:
                                (self.rx_pos[1,rx_n] - traj[1].T)**2)
 
                 tau_kmn = 1 / self.light_speed * (d_tx + d_rx)
+                
                 tau.append(tau_kmn)
 
         return np.array(tau)
@@ -216,7 +218,7 @@ class Radar:
 
         return np.array(alpha)
 
-    def add_awgn(self, signals):
+    def add_awgn(self, signals, alpha):
         """
             Calculate and add circular symmetric white gaussian noise to the signal
 
@@ -237,8 +239,16 @@ class Radar:
             sig_only = signal[sig_idx]
             # Find the variance (power of the signal)
             sig_var = np.var(sig_only)
-            # Calculate linear SNR
-            lin_snr = 10.0**(self.snr / 10.0)
+            
+            # Determine spectral height of noise
+            t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
+            fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
+
+            # # Calculate linear SNR
+            # lin_snr = 10.0**(self.snr / 10.0)
+            lin_snr = np.mean(alpha * fraq)
+            self.snr = 10*np.log10(lin_snr)
+            
             # Calculate the variance of the noise
             n_var = sig_var / lin_snr
             # Calculate the noise
@@ -322,8 +332,21 @@ class Radar:
                                              self.t_vec)
 
         if add_noise:
-            rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig)
-
+            rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
+        # print((self.get_target_true_dist(theta)))
+        # sig_vec = []
+        # for _, sig in enumerate(rx_sig):
+        #     sig_start = np.argmax(sig > 0)
+        #     chirp_len = int(self.receiver.f_sample * self.transmitter.t_chirp)
+        #     for chirp in range(self.transmitter.chirps * self.m_channels):
+        #         sig_seg = np.zeros(sig.shape, dtype=np.complex128)
+        #         start = sig_start + chirp * chirp_len
+        #         stop = start + chirp_len
+        #         sig_seg[start:stop] = sig[start:stop]
+        #         # plt.plot(sig_seg)
+        #         sig_vec.append(sig_seg)
+        # sig_vec = np.array(sig_vec)
+        
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
         mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
@@ -421,6 +444,10 @@ class Radar:
                         (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
             axs[idx].plot(fft_range, 2.0/N * np.abs(fft_sig))
             axs[idx].set_title(f"Channel: {idx}")
+            
+            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
+            # print(fft_range[sample])
+            
             if idx == max_plots-1: 
                 break
         plt.xlabel("Range [m]")
@@ -430,12 +457,12 @@ class Radar:
 
 if __name__ == '__main__':
     k = 10
-    tx = Transmitter(channels=2, t_chirp=60e-6, chirps=2)
+    tx = Transmitter(channels=2, chirps=2)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000, snr=50)
     target = Target(radar.t_obs + radar.k_space)
-    target_states = target.generate_states(k, 'linear_away')
+    target_states = target.generate_states(k, 'random')
     radar.observation(1, target_states[1],
-                      add_noise=True, plot_tx=True, plot_rx=True,
+                      add_noise=True, plot_tx=False, plot_rx=False,
                       plot_mixed=False, plot_fft=True)

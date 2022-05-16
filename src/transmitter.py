@@ -21,14 +21,15 @@ class Transmitter:
             no value
     """
 
-    def __init__(self, channels=5, f_carrier=30e9, t_chirp=60e-6,
+    def __init__(self, channels=5, f_carrier=30e9,
                  chirps=2, bandwidth=500e6, tx_power=30, mult="tdm"):
         self.f_carrier = f_carrier
         self.bandwidth = bandwidth
         self.tx_power_db = tx_power
         self.tx_power = 10**(self.tx_power_db / 10) / 1000
         self.channels = channels
-        self.t_chirp = t_chirp
+        self.slope = 5e12
+        self.t_chirp = self.bandwidth / 5e12
         self.chirps = chirps
         self.mult = mult
 

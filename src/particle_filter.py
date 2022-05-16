@@ -157,7 +157,7 @@ class ParticleFilter():
         self.weights.resize(self.n_particles, 1)
         self.weights.fill(1.0 / self.n_particles)
 
-    def get_range(self, sig_vec):
+    def get_range(self, sig_vec, slope):
         """
             Compute the range FFT of given FMCW IF signal.
 
@@ -179,7 +179,8 @@ class ParticleFilter():
             fft_times = fft_samples/(80e6)
             fft_idx = np.arange(fft_samples, dtype=np.float64)
             freq = fft_idx/fft_times
-            fft_range = (freq * self.light_speed / (2.0 * 300e6/60e-6))
+            fft_range = (freq * 300e6 / (2.0 * slope))
+            
             range_vec.append(fft_range[sample])
 
         return np.array(range_vec)
