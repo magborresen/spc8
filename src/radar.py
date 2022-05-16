@@ -45,6 +45,7 @@ class Radar:
         self.range_res = self.light_speed / (2 * self.transmitter.bandwidth)
         self.k_space = 1
         self.t_vec = self.create_time_vector()
+        self.rho = 0.5
 
     def place_antennas(self) -> None:
         """
@@ -117,9 +118,9 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def get_true_dist(self, theta):
+    def get_target_true_dist(self, theta):
         """
-            Get the true distance between target or particle to receivers
+            Get the true distance of the target to each receiver antenna
 
             Args:
                 theta (np.ndarray): Position and velocity vector of the target
@@ -127,9 +128,9 @@ class Radar:
             Returns:
                 true_dist (list): List of eucledian distances to each of the receiver antennas
         """
-        true_dist = [np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 +
-                             (self.rx_pos[1,rx_n] - theta[1])**2)
-                    for rx_n in range(self.n_channels)]
+        true_dist = [np.sqrt((radar.rx_pos[rx_n] - theta[0])**2 +
+                             (radar.rx_pos[rx_n] - theta[1])**2)
+                    for rx_n in range(radar.n_channels)]
 
         return true_dist
 
@@ -186,7 +187,7 @@ class Radar:
 
         return r_k
 
-    def get_attenuation(self, theta, target_rcs=0.04, rho=0.5):
+    def get_attenuation(self, theta, target_rcs=0.04):
         """
             Calculate alpha to attenuate the received signal
 
@@ -200,7 +201,7 @@ class Radar:
             Returns:
                 alpha (np.ndarray): Receiver attenuations
         """
-        aperture = self.wavelength**2 * rho
+        aperture = self.wavelength**2 * self.rho
         gain = 4 * np.pi * aperture / self.wavelength**2
         alpha = []
         for rx_n in range(self.n_channels):

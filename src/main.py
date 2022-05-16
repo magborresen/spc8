@@ -32,10 +32,10 @@ def monte_carlo(k_obs):
         for k in range(theta.shape[0]):
             # Calculate distances from all antennas to target
             dists = [np.sqrt((radar.rx_pos[0,rx_n] - theta[k][0])**2 + (radar.rx_pos[1,rx_n] - theta[k][1])**2) for rx_n in range(radar.n_channels)]
-            print(f'k={k}/{k_obs-1}, true distance={max(dists)[0]}')
+            # print(f'k={k}/{k_obs-1}, true distance={max(dists)[0]}')
             
             # Stop if target is out of region
-            if (np.array(dists) > 2300).any() or (np.array(dists) < 23).any() or cnt_k > k_obs-1:
+            if (np.array(dists) > 2400).any() or (np.array(dists) < 1).any() or cnt_k > k_obs-1:
                 print(f'Stopped, k+={k}')
                 break
             
@@ -64,11 +64,49 @@ def monte_carlo(k_obs):
     
     print(f'\nRMSE:\n Theta: {theta_RMSE[-1]}\n Range: {range_RMSE[-1]}')
     
+def plot_alpha(rho_list):
+    plots_dist = []
+    plots_alpha = []
+    for _, rho in enumerate(rho_list):
+        k_obs = 137
+        tx = Transmitter(channels=2, chirps=2, tx_power=30)
+        rx = Receiver(channels=2)
+        radar = Radar(tx, rx, "tdm", 2000, snr=50)
+        target = Target(radar.t_obs + radar.k_space, velocity=16.6)
+        plot_dist = []
+        plot_alpha = []
+        cnt_k = 0
+        radar.rho = rho
+        while cnt_k < k_obs-1:
+            theta = target.generate_states(300, method='linear_away')
+            for k in range(theta.shape[0]):
+                dists = [np.sqrt((radar.rx_pos[0,rx_n] - theta[k][0])**2 + (radar.rx_pos[1,rx_n] - theta[k][1])**2) for rx_n in range(radar.n_channels)]
+                if (np.array(dists) > 2500).any() or (np.array(dists) < 0).any() or cnt_k > k_obs-1:
+                    break
+                s_k, y_k, alpha = radar.observation(k, theta[k], add_noise=True)
+                plot_alpha.append(alpha[0])
+                plot_dist.append(np.max(dists))
+                cnt_k += 1
+        plots_dist.append(plot_dist)
+        plots_alpha.append(plot_alpha)
+    
+    plots_dist = np.array(plots_dist)    
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
+    for i in range(len(rho_list)):
+        ax.plot(plots_dist[i], plots_alpha[i], label=f'\u03C1 = {rho_list[i]}')
+    ax.set_yscale('log')
+    ax.grid()
+    ax.set_xlim([0, 2400])
+    plt.legend()
+    plt.xlabel('Range [m]')
+    plt.ylabel('\u03B1')
+    fig.suptitle('Attenuation over range')
+    fig.tight_layout()
+    plt.savefig('attenuation_vs_range.pdf', dpi=200)
 
-def plot_parameters(power_list, power_alpha):
+def plot_sigma(power_list):
     plots_dist = []
     plots_noise = []
-    plots_alpha = []
     for _, power in enumerate(power_list):
         k_obs = 137
         tx = Transmitter(channels=2, chirps=2, tx_power=power)
@@ -85,16 +123,12 @@ def plot_parameters(power_list, power_alpha):
                 dists = [np.sqrt((radar.rx_pos[0,rx_n] - theta[k][0])**2 + (radar.rx_pos[1,rx_n] - theta[k][1])**2) for rx_n in range(radar.n_channels)]
                 if (np.array(dists) > 2500).any() or (np.array(dists) < 0).any() or cnt_k > k_obs-1:
                     break
-                s_k, y_k, alpha = radar.observation(k, theta[k], add_noise=True)
-                if power == power_alpha:
-                    plots_alpha.append(alpha[0])
+                radar.observation(k, theta[k], add_noise=True)
                 plot_dist.append(np.max(dists))
                 plot_noise.append(radar.receiver.sigma_noise)
                 cnt_k += 1
         plots_dist.append(plot_dist)
         plots_noise.append(plot_noise)
-    
-    # Plot noise variance over range
     plots_dist = np.array(plots_dist)
     plots_noise = np.array(plots_noise)
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
@@ -109,20 +143,9 @@ def plot_parameters(power_list, power_alpha):
     fig.suptitle('Noise variance over range')
     fig.tight_layout()
     plt.savefig('variance_vs_range.pdf', dpi=200)
-    
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
-    idx = power_list.index(power_alpha)
-    plt.plot(plots_dist[idx], np.array(plots_alpha))
-    ax.set_yscale('log')
-    ax.grid()
-    ax.set_xlim([0, 2400])
-    plt.xlabel('Range [m]')
-    plt.ylabel('\u03B1')
-    fig.suptitle('Attenuation over range')
-    fig.tight_layout()
-    plt.savefig('attenuation_vs_range.pdf', dpi=200)
 
 if __name__ == '__main__':
     
-    # plot_parameters([20, 30, 50], 30)
-    monte_carlo(100)
+    # plot_alpha([0.5, 0.75, 1])
+    # plot_sigma([20, 30, 50])
+    monte_carlo(1000)
