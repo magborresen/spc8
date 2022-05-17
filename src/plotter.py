@@ -95,15 +95,17 @@ def plot_tx_fft():
     radar = Radar(tx, rx, "tdm", 2000)
     
     tx_sig = radar.transmitter.tx_tdm(radar.t_vec)[0]
-    tx_period = np.where(np.abs(tx_sig) > 0)
+    tx_sig = tx_sig[np.nonzero(tx_sig)]
     # plt.plot(tx_sig.real)
     fft_sig = np.fft.fft(tx_sig)
     N = len(fft_sig)
-    T = N/(radar.transmitter.bandwidth)
+    T = N/(radar.receiver.f_sample*10)
     n = np.arange(N)
     freq = n/T
+    # dBm = 10*np.log10()
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5))
     axs.plot(freq/1e6, np.abs(fft_sig))
+    # axs.plot(freq[:N//2], 2.0/N * np.abs(fft_sig[:N//2]))
     
 
 if __name__ == '__main__':

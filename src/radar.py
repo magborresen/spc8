@@ -377,39 +377,39 @@ class Radar:
 
 
         
-        # mix_vec = self.signal_mixer(rx_sig, tx_sig)
+        mix_vec = self.signal_mixer(rx_sig, tx_sig)
         
-        # range_true = self.get_target_true_dist(theta)
-        # print('True range:', range_true)
+        range_true = self.get_target_true_dist(theta)
+        print('True range:', range_true)
 
-        # # Prepare low-pass filter for mixed signals
-        # nyq = self.receiver.f_sample * self.oversample
-        # sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
-        # fft_vec = []
-        # for n_ch in range(self.n_channels):
-        #     range_n = 0
-        #     fft_n = []
-        #     for chirp_idx in range(self.m_channels * self.transmitter.chirps):
-        #         # Find non-zero part of mixed signal
-        #         sig = mix_vec[n_ch][chirp_idx]
-        #         sig = sig[np.nonzero(sig)]
+        # Prepare low-pass filter for mixed signals
+        nyq = self.receiver.f_sample * self.oversample
+        sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
+        fft_vec = []
+        for n_ch in range(self.n_channels):
+            range_n = 0
+            fft_n = []
+            for chirp_idx in range(self.m_channels * self.transmitter.chirps):
+                # Find non-zero part of mixed signal
+                sig = mix_vec[n_ch][chirp_idx]
+                # sig = sig[np.nonzero(sig)]
                 
-        #         # Low-pass filter mixed signal
-        #         sig_fil = sosfilt(sos, sig)
-        #         # print(sig_fil.shape)
-        #         # Get range-FFT of mixed signal
-        #         sig_fft = np.fft.fft(sig_fil)
-        #         N = len(sig_fft)
-        #         T = N/(self.receiver.f_sample * self.oversample)
-        #         n = np.arange(N)
-        #         freq = n/T
-        #         sig_range = (freq * self.light_speed /
-        #                     (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
-        #         sample = np.argmax(2.0/len(sig_fft) * np.abs(sig_fft))
-        #         # plt.plot(sig_range, np.abs(sig_fft))
+                # Low-pass filter mixed signal
+                sig_fil = sosfilt(sos, sig)
+                # print(sig_fil.shape)
+                # Get range-FFT of mixed signal
+                sig_fft = np.fft.fft(sig_fil)
+                N = len(sig_fft)
+                T = N/(self.receiver.f_sample * self.oversample)
+                n = np.arange(N)
+                freq = n/T
+                sig_range = (freq * self.light_speed /
+                            (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
+                sample = np.argmax(2.0/len(sig_fft) * np.abs(sig_fft))
+                # plt.plot(sig_range, np.abs(sig_fft))
                 
-        #         range_n += sig_range[sample]
-        #     print(f'Receiver {n_ch}:', range_n / (self.m_channels * self.transmitter.chirps))
+                range_n += sig_range[sample]
+            print(f'Receiver {n_ch}:', range_n / (self.m_channels * self.transmitter.chirps))
 
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
@@ -432,7 +432,7 @@ class Radar:
             self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
         if plot_range_fft:
             self.plot_range_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
-
+        # self.plot_range_fft(tx_sig)
         return (lpf_mixed_s_sig, lpf_mixed_sig, alpha)
 
     def plot_sig(self, sig, title):
