@@ -8,7 +8,7 @@ class Target():
     """
         Class to generate target states
     """
-    def __init__(self, timestep : float, region=2000, velocity=60):
+    def __init__(self, timestep : float, region=2000, velocity=16):
         self.T = timestep
         self.F = np.block([[np.eye(2), self.T*np.eye(2)],
                            [np.zeros((2,2)), np.eye(2)]])
@@ -58,12 +58,12 @@ class Target():
                                             [vel_x], [-vel_y]])
         # Linear, away from origin:
         elif method == 'linear_away':
-            self.init_state = np.array([[500], [500],
+            self.init_state = np.array([[1000], [100],
                                         [0], [self.velocity]])
         # Linear, towards origin:
         else:
-            self.init_state = np.array([[1500], [500],
-                                        [0], [self.velocity]])
+            self.init_state = np.array([[1000], [1000],
+                                        [0], [-self.velocity]])
         ax = np.random.normal(0, 0.1, k_tot)#np.zeros((1,k_tot))
         ay = np.zeros((1,k_tot))
 
