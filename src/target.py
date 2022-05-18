@@ -58,12 +58,12 @@ class Target():
                                             [vel_x], [-vel_y]])
         # Linear, away from origin:
         elif method == 'linear_away':
-            self.init_state = np.array([[1000], [1],
+            self.init_state = np.array([[1000], [100],
                                         [0], [self.velocity]])
         # Linear, towards origin:
         else:
-            self.init_state = np.array([[1000], [500],
-                                        [0], [self.velocity]])
+            self.init_state = np.array([[1000], [1000],
+                                        [0], [-self.velocity]])
         ax = np.random.normal(0, 0.1, k_tot)#np.zeros((1,k_tot))
         ay = np.zeros((1,k_tot))
 

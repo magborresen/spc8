@@ -332,9 +332,9 @@ class Radar:
                     chirp_start = y_sig_start + samples[m_ch][chirp]
                     chirp_stop = chirp_start + chirp_len
                     # Mix signal
-                    mix_sig = np.zeros(x.shape, dtype=np.complex128)
-                    mix_sig[chirp_start:chirp_stop] = y[chirp_start:chirp_stop]
-                    mix_sig = np.conjugate(mix_sig) * x
+                    # mix_sig = np.zeros(x.shape, dtype=np.complex128)
+                    mix_sig = y[chirp_start:chirp_stop]
+                    mix_sig = np.conjugate(mix_sig) * x[chirp_start:chirp_stop]
                     rx_mix_vec.append(mix_sig)
 
             mix_vec.append(rx_mix_vec)
@@ -389,6 +389,35 @@ class Radar:
 
         return np.array(range_cube), np.array(range_est)
 
+    def velocity_fft_cube(self, range_cube):
+        """
+            THIS FUNCTION IS NOT FULLY FUNCTIONAL
+
+            Args:
+                range_cube (np.ndarray): Three-dimensional range cube
+
+            Returns:
+                none
+        """
+        samples = [np.argmax(range_cube[n_ch][chirp]) 
+                    for chirp in range(self.m_channels * self.transmitter.chirps) 
+                    for n_ch in range(self.n_channels)]
+        vel_est = np.zeros(range_cube.shape, dtype=np.complex128)
+        for n_ch in range(self.n_channels):
+            cube = range_cube[n_ch].T
+            vel_cube = np.zeros(cube.shape, dtype=np.complex128)
+            for idx in range(vel_cube.shape[0]):
+                sig_fft = np.fft.fft(cube[idx])
+                vel_cube[idx] = sig_fft
+            vel_est[n_ch] = vel_cube.T
+        velocity_table = 2*np.pi*np.concatenate((np.arange(0, (self.transmitter.chirps*self.m_channels)//2), np.arange(-(self.transmitter.chirps*self.m_channels)//2, 0)[::-1]))*self.transmitter.bandwidth/(self.transmitter.chirps*self.m_channels)
+        velocity_table = velocity_table * self.light_speed / (4*np.pi*self.transmitter.f_carrier)
+        plt.imshow(np.abs(vel_est[0]))
+        plt.imshow(np.abs(vel_est[1]))
+        plt.xlim((min(samples),max(samples)+1))
+        plt.yticks(range(velocity_table.size), velocity_table)
+        plt.gca().set_aspect('equal')
+
     def observation(self, k_obs, theta, alpha=None, add_noise=False,
                     plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
                     plot_range_fft=False):
@@ -424,72 +453,14 @@ class Radar:
 
         if add_noise:
             rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
-        
 
         # Mix signals
         mix_vec = self.signal_mixer(rx_sig, tx_sig)        
         # Range-FFT
         range_cube, range_est = self.range_fft_cube(mix_vec)
         range_true, vel_true = self.get_target_true_values(theta)
-        
-        # ### Measure velocity
-        samples = [np.argmax(range_cube[n_ch][chirp]) 
-                    for chirp in range(self.m_channels * self.transmitter.chirps) 
-                    for n_ch in range(self.n_channels)]
-        # vel_est = np.zeros(self.n_channels)
-        # for n_ch in range(self.n_channels):
-        #     cube = range_cube[n_ch].T
-        #     vel_sum = []
-        #     phase_old = 0
-        #     for idx in range(min(samples), max(samples)+1):
-        #         sig_fft = np.fft.fft(cube[idx])
-        #         phase = np.angle(sig_fft)            
-        #         velocity = self.wavelength * (phase-phase_old) / (4 * np.pi * self.transmitter.t_chirp)
-        #         print(n_ch, velocity)
-        #         phase_old = phase
-        #         vel_sum.append(velocity)
-        #         plt.plot(np.abs(sig_fft))
-                
-        #     # vel_sum = np.array(vel_sum)
-        #     vel_est[n_ch] = sum(vel_sum)/len(vel_sum)
-
-        # plt.imshow(np.abs(vel_est[0]))
-    
-
-        vel_est = np.zeros(range_cube.shape, dtype=np.complex128)
-        for n_ch in range(self.n_channels):
-            cube = range_cube[n_ch].T
-            vel_cube = np.zeros(cube.shape, dtype=np.complex128)
-            # for idx in range(min(samples), max(samples)+1):
-            for idx in range(self.samples_per_obs):
-                sig_fft = np.fft.fft(cube[idx])
-                vel_cube[idx] = sig_fft
-
-            vel_est[n_ch] = vel_cube.T
-        
-        
-        # velocity_table = np.linspace()
-        
-        plt.imshow(np.abs(vel_est[0]))
-        plt.xlim((min(samples),max(samples)+1))
-        plt.gca().set_aspect('equal')
-
-                
-        print('v_max =', self.wavelength / (4*self.transmitter.t_chirp))
-        print('v_res =', self.wavelength / (4*(self.t_obs - self.transmitter.t_chirp)))
-        vel_est = [0,0]
-        print(f'\nTarget velocity = {vel_true}')
-        [print(f'Receiver {n_ch}:\n Range true: {range_true[n_ch][0]}\n Range est: {range_est[n_ch]}\n Range error: {range_true[n_ch][0]-range_est[n_ch]}\n Velocity est: {vel_est[n_ch]}\n Velocity error: {vel_true-vel_est[n_ch]}\n') for n_ch in range(self.n_channels)]
-
-        # Mix signals
-        mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
-        mixed_s_sig = np.conjugate(s_sig) * sum(tx_sig) # Without attenuation
-
-        ### Low-pass filter signals ###
-        # With attenuation (alpha)
-        lpf_mixed_sig = self.butter_lowpass_filter(mixed_sig, self.receiver.f_sample/2-1)
-        # Without attenuation (alpha)
-        lpf_mixed_s_sig = self.butter_lowpass_filter(mixed_s_sig, self.receiver.f_sample/2-1)
+        # self.velocity_fft_cube(range_cube)
+        # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
 
         # Plotters
         if plot_tx:
@@ -503,8 +474,14 @@ class Radar:
         if plot_range_fft:
             self.plot_range_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
 
-        return (lpf_mixed_s_sig, lpf_mixed_sig, alpha)
+        return range_est, alpha
 
+    def print_estimates(self, range_true, range_est, vel_true, vel_est):
+        print('v_max =', self.wavelength / (4*self.transmitter.t_chirp))
+        print('v_res =', self.wavelength / (4*(self.t_obs - self.transmitter.t_chirp)))
+        print(f'\nTarget velocity = {vel_true}')
+        [print(f'Receiver {n_ch}:\n Range true: {range_true[n_ch][0]}\n Range est: {range_est[n_ch]}\n Range error: {range_true[n_ch][0]-range_est[n_ch]}\n Velocity est: {vel_est[n_ch]}\n Velocity error: {vel_true-vel_est[n_ch]}\n') for n_ch in range(self.n_channels)]
+        
     def plot_sig(self, sig, title):
         """
             Plot the transmitted signals over time. This plotter will create a 
@@ -591,12 +568,12 @@ class Radar:
         
 if __name__ == '__main__':
     k = 100
-    tx = Transmitter(channels=2, chirps=20)
+    tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
-    target = Target(radar.t_obs + radar.k_space, velocity=12)
-    target_states = target.generate_states(k, 'random')
+    target = Target(radar.t_obs + radar.k_space, velocity=-12)
+    target_states = target.generate_states(k, 'linearaway')
     radar.observation(20, target_states[20],
                       add_noise=True, plot_tx=False, plot_rx=False,
                       plot_mixed=False, plot_range_fft=False)
