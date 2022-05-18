@@ -69,7 +69,7 @@ class ParticleFilter():
         self.weights = np.full((self.n_particles, 1), w_value)
 
 
-    def predict_particle(self, particle, sk_n: np.ndarray, yk_n: np.ndarray):
+    def predict_particle(self, particle):
         """
             Update particle parameters for the k'th observation
         """
@@ -84,11 +84,11 @@ class ParticleFilter():
                                         self._t_obs * self.acc[particle])
 
         # Update alphas for each receiver
-        for i in range(sk_n.shape[0]):
-            self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]), yk_n[i].T) /
-                                                 np.square(np.linalg.norm(sk_n[i])))
+        #for i in range(sk_n.shape[0]):
+        #    self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]), yk_n[i].T) /
+        #                                         np.square(np.linalg.norm(sk_n[i])))
 
-    def update_likelihood_fft(self, particle, y_k, x_k_i):
+    def update_likelihood_fft(self, particle, y_k, x_k_i, slope):
         """
             Update the likelihood for each particle
         """
@@ -101,7 +101,7 @@ class ParticleFilter():
 
         self.likelihoods[particle] = np.exp(-temp*1e12)
 
-        range_vec = self.get_range(y_k)
+        range_vec = self.get_range(y_k, slope)
         print('Range difference (y_k)', range_vec[0] - range_vec[1])
 
 
@@ -152,8 +152,7 @@ class ParticleFilter():
             Resample the particles from the indexes found by the resampling scheme.
         """
         self.theta_est[:] = self.theta_est[indexes]
-        self.theta_est[:,2] *= np.random.normal(loc=0, scale=100, size=self.theta_est[:,2].shape)
-
+        self.theta_est[:,:2] *= np.abs(np.random.normal(loc=1, scale=0.0001, size=self.theta_est[:,:2].shape))
         self.weights.resize(self.n_particles, 1)
         self.weights.fill(1.0 / self.n_particles)
 
