@@ -20,7 +20,7 @@ class Radar:
             no value
     """
 
-    def __init__(self, transmitter, receiver, mp_method, region):
+    def __init__(self, transmitter, receiver, mp_method, region, oversample=1):
         self.transmitter = transmitter
         self.receiver = receiver
         self.mp_method = mp_method
@@ -31,7 +31,7 @@ class Radar:
         self.t_rx = 20e-6
         self.t_obs = (self.transmitter.t_chirp * self.m_channels *
                       self.transmitter.chirps + self.transmitter.t_chirp)
-        self.oversample = 1
+        self.oversample = oversample
         self.samples_per_obs = int(self.receiver.f_sample * self.t_obs * self.oversample)
         self.light_speed = 300e6
         self.atmos_loss_factor = 0.02
@@ -118,7 +118,7 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def get_target_true_dist(self, theta):
+    def get_target_true_values(self, theta):
         """
             Get the true distance of the target to each receiver antenna
 
@@ -128,11 +128,13 @@ class Radar:
             Returns:
                 true_dist (list): List of eucledian distances to each of the receiver antennas
         """
-        true_dist = [np.sqrt((radar.rx_pos[0,rx_n] - theta[0])**2 +
-                             (radar.rx_pos[1,rx_n] - theta[1])**2)
-                    for rx_n in range(radar.n_channels)]
+        true_dist = [np.sqrt((self.rx_pos[0,rx_n] - theta[0])**2 +
+                             (self.rx_pos[1,rx_n] - theta[1])**2)
+                    for rx_n in range(self.n_channels)]
+        
+        true_vel = np.linalg.norm((theta[2], theta[3]))
 
-        return true_dist
+        return np.array(true_dist), true_vel
 
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
@@ -322,12 +324,13 @@ class Radar:
             # Find echo start sample
             y_sig_start = np.argmax(y > 0)
             rx_mix_vec = []
-            for m_ch, x in enumerate(tx_sig):
-                for chirp in range(self.transmitter.chirps):
+            # for m_ch, x in enumerate(tx_sig):
+            #     for chirp in range(self.transmitter.chirps):
+            for chirp in range(self.transmitter.chirps):
+                for m_ch, x in enumerate(tx_sig):
                     # Determine start/stop samples of chirp
                     chirp_start = y_sig_start + samples[m_ch][chirp]
                     chirp_stop = chirp_start + chirp_len
-                    
                     # Mix signal
                     mix_sig = np.zeros(x.shape, dtype=np.complex128)
                     mix_sig[chirp_start:chirp_stop] = y[chirp_start:chirp_stop]
@@ -335,8 +338,56 @@ class Radar:
                     rx_mix_vec.append(mix_sig)
 
             mix_vec.append(rx_mix_vec)
-            
-        return np.array(mix_vec)
+        mix_vec = np.flip(np.array(mix_vec), axis=0)
+        return mix_vec
+    
+    def range_fft_cube(self, mix_vec):
+        """
+            This is a complex signal mixer, that seperates individual chirps
+            in the received signals - and mixes them with the respective
+            transmitted chirp. Since there will be a total of m_channels * N_c
+            chirps, so will the output. Output is indexed by n_channels and
+            chirp_index.
+
+            Args:
+                mix_vec (np.ndarray): Collection of mixed signals
+
+            Returns:
+                range_cube (np.ndarray): Three-dimensional range cube
+        """
+        # Prepare low-pass filter for mixed signals
+        nyq = self.receiver.f_sample * self.oversample
+        sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
+        T = self.samples_per_obs/(self.receiver.f_sample * self.oversample)
+        n = np.arange(self.samples_per_obs)
+        freq = n/T
+        sig_range = (freq * self.light_speed /
+                    (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
+        range_est = []
+        range_cube = []
+        for n_ch in range(self.n_channels):
+            range_n = 0
+            fft_vec = []
+            for chirp_idx in range(self.m_channels * self.transmitter.chirps):
+                # Find non-zero part of mixed signal
+                sig = mix_vec[n_ch][chirp_idx]
+                # Low-pass filter mixed signal
+                sig_fil = sosfilt(sos, sig)
+                # Get range-FFT of mixed signal
+                sig_fft = np.fft.fft(sig_fil)
+                N = len(sig_fft)
+                T = N/(self.receiver.f_sample * self.oversample)
+                n = np.arange(N)
+                freq = n/T
+                # Convert frequency to range
+                sig_range = (freq * self.light_speed /
+                            (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
+                fft_vec.append(sig_fft)
+                range_n += sig_range[np.argmax(sig_fft)]
+            range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
+            range_cube.append(fft_vec)
+
+        return np.array(range_cube), np.array(range_est)
 
     def observation(self, k_obs, theta, alpha=None, add_noise=False,
                     plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
@@ -375,41 +426,60 @@ class Radar:
             rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
         
 
-
+        # Mix signals
+        mix_vec = self.signal_mixer(rx_sig, tx_sig)        
+        # Range-FFT
+        range_cube, range_est = self.range_fft_cube(mix_vec)
+        range_true, vel_true = self.get_target_true_values(theta)
         
-        mix_vec = self.signal_mixer(rx_sig, tx_sig)
-        
-        range_true = self.get_target_true_dist(theta)
-        print('True range:', range_true)
+        # ### Measure velocity
+        samples = [np.argmax(range_cube[n_ch][chirp]) 
+                    for chirp in range(self.m_channels * self.transmitter.chirps) 
+                    for n_ch in range(self.n_channels)]
+        # vel_est = np.zeros(self.n_channels)
+        # for n_ch in range(self.n_channels):
+        #     cube = range_cube[n_ch].T
+        #     vel_sum = []
+        #     phase_old = 0
+        #     for idx in range(min(samples), max(samples)+1):
+        #         sig_fft = np.fft.fft(cube[idx])
+        #         phase = np.angle(sig_fft)            
+        #         velocity = self.wavelength * (phase-phase_old) / (4 * np.pi * self.transmitter.t_chirp)
+        #         print(n_ch, velocity)
+        #         phase_old = phase
+        #         vel_sum.append(velocity)
+        #         plt.plot(np.abs(sig_fft))
+                
+        #     # vel_sum = np.array(vel_sum)
+        #     vel_est[n_ch] = sum(vel_sum)/len(vel_sum)
 
-        # Prepare low-pass filter for mixed signals
-        nyq = self.receiver.f_sample * self.oversample
-        sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
-        fft_vec = []
+        # plt.imshow(np.abs(vel_est[0]))
+    
+
+        vel_est = np.zeros(range_cube.shape, dtype=np.complex128)
         for n_ch in range(self.n_channels):
-            range_n = 0
-            fft_n = []
-            for chirp_idx in range(self.m_channels * self.transmitter.chirps):
-                # Find non-zero part of mixed signal
-                sig = mix_vec[n_ch][chirp_idx]
-                # sig = sig[np.nonzero(sig)]
+            cube = range_cube[n_ch].T
+            vel_cube = np.zeros(cube.shape, dtype=np.complex128)
+            # for idx in range(min(samples), max(samples)+1):
+            for idx in range(self.samples_per_obs):
+                sig_fft = np.fft.fft(cube[idx])
+                vel_cube[idx] = sig_fft
+
+            vel_est[n_ch] = vel_cube.T
+        
+        
+        # velocity_table = np.linspace()
+        
+        plt.imshow(np.abs(vel_est[0]))
+        plt.xlim((min(samples),max(samples)+1))
+        plt.gca().set_aspect('equal')
+
                 
-                # Low-pass filter mixed signal
-                sig_fil = sosfilt(sos, sig)
-                # print(sig_fil.shape)
-                # Get range-FFT of mixed signal
-                sig_fft = np.fft.fft(sig_fil)
-                N = len(sig_fft)
-                T = N/(self.receiver.f_sample * self.oversample)
-                n = np.arange(N)
-                freq = n/T
-                sig_range = (freq * self.light_speed /
-                            (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
-                sample = np.argmax(2.0/len(sig_fft) * np.abs(sig_fft))
-                # plt.plot(sig_range, np.abs(sig_fft))
-                
-                range_n += sig_range[sample]
-            print(f'Receiver {n_ch}:', range_n / (self.m_channels * self.transmitter.chirps))
+        print('v_max =', self.wavelength / (4*self.transmitter.t_chirp))
+        print('v_res =', self.wavelength / (4*(self.t_obs - self.transmitter.t_chirp)))
+        vel_est = [0,0]
+        print(f'\nTarget velocity = {vel_true}')
+        [print(f'Receiver {n_ch}:\n Range true: {range_true[n_ch][0]}\n Range est: {range_est[n_ch]}\n Range error: {range_true[n_ch][0]-range_est[n_ch]}\n Velocity est: {vel_est[n_ch]}\n Velocity error: {vel_true-vel_est[n_ch]}\n') for n_ch in range(self.n_channels)]
 
         # Mix signals
         mixed_sig = np.conjugate(rx_sig) * sum(tx_sig) # With attenuation
@@ -432,7 +502,7 @@ class Radar:
             self.plot_sig(lpf_mixed_sig, f"LPF Mixed signals for observation {k_obs}")
         if plot_range_fft:
             self.plot_range_fft(lpf_mixed_sig, f"FFT for LPF mixed signals for observation {k_obs}")
-        # self.plot_range_fft(tx_sig)
+
         return (lpf_mixed_s_sig, lpf_mixed_sig, alpha)
 
     def plot_sig(self, sig, title):
@@ -506,10 +576,10 @@ class Radar:
             freq = n/T
             fft_range = (freq * self.light_speed /
                         (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
-            axs[idx].plot(fft_range, 2.0/N * np.abs(fft_sig))
+            axs[idx].plot(fft_range, N * np.abs(fft_sig))
             axs[idx].set_title(f"Channel: {idx}")
             
-            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
+            sample = np.argmax(len(fft_sig) * np.abs(fft_sig))
             # print(fft_range[sample])
             
             if idx == max_plots-1: 
@@ -520,14 +590,14 @@ class Radar:
         plt.show()
         
 if __name__ == '__main__':
-    k = 10
-    tx = Transmitter(channels=2, chirps=1)
+    k = 100
+    tx = Transmitter(channels=2, chirps=20)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
-    target = Target(radar.t_obs + radar.k_space)
+    target = Target(radar.t_obs + radar.k_space, velocity=12)
     target_states = target.generate_states(k, 'random')
-    radar.observation(1, target_states[1],
+    radar.observation(20, target_states[20],
                       add_noise=True, plot_tx=False, plot_rx=False,
-                      plot_mixed=False, plot_range_fft=True)
+                      plot_mixed=False, plot_range_fft=False)
     # radar.plot_region(target_states)

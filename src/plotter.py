@@ -92,7 +92,7 @@ def plot_sigma(power_list):
 def plot_tx_fft():
     tx = Transmitter(channels=1, chirps=1, tx_power=30)
     rx = Receiver(channels=1)
-    radar = Radar(tx, rx, "tdm", 2000)
+    radar = Radar(tx, rx, "tdm", 2000, oversample=10)
     
     tx_sig = radar.transmitter.tx_tdm(radar.t_vec)[0]
     tx_sig = tx_sig[np.nonzero(tx_sig)]

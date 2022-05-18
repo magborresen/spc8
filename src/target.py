@@ -8,7 +8,7 @@ class Target():
     """
         Class to generate target states
     """
-    def __init__(self, timestep : float, region=2000, velocity=60):
+    def __init__(self, timestep : float, region=2000, velocity=16):
         self.T = timestep
         self.F = np.block([[np.eye(2), self.T*np.eye(2)],
                            [np.zeros((2,2)), np.eye(2)]])
