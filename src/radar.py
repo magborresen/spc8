@@ -56,16 +56,15 @@ class Radar:
             Returns:
                 no value
         """
-        self.tx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 -
-                                  np.linspace(self.wavelength / 2,
-                                              self.m_channels * self.wavelength / 2,
-                                              self.m_channels)),
+        tx_dist = self.wavelength * 2
+        rx_dist = self.wavelength / 2
+        
+        self.tx_pos = np.array([(self.region / 2 - self.wavelength / 2 -
+                                  np.linspace(0, (self.m_channels-1) * tx_dist, self.m_channels)),
                                   np.zeros(self.m_channels)])
 
-        self.rx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 +
-                                np.linspace(self.wavelength * 2,
-                                            self.n_channels * self.wavelength/2,
-                                            self.n_channels)),
+        self.rx_pos = np.array([(self.region / 2 + self.wavelength / 2 +
+                                np.linspace(0, (self.n_channels-1) * rx_dist, self.n_channels)),
                                 np.zeros(self.n_channels)])
 
     def plot_antennas(self) -> None:
@@ -77,12 +76,13 @@ class Radar:
             Returns:
                 no value
         """
-        offset = 0.5
+        offset = self.wavelength
         plt.scatter(self.tx_pos[0], self.tx_pos[1], label="TX Antennas")
         plt.scatter(self.rx_pos[0], self.rx_pos[1], label="RX Antennas")
         plt.legend()
         plt.xlim(self.tx_pos[0][-1]-offset, self.rx_pos[0][-1]+offset)
         plt.ylim(-offset, self.tx_pos[1][-1]+offset)
+        plt.grid()
         plt.ylim()
         plt.title("RX/TX positions in the plane")
         plt.xlabel("Position [m]")
@@ -586,13 +586,14 @@ class Radar:
 
 if __name__ == '__main__':
     k = 100
-    tx = Transmitter(channels=2, chirps=10)
+    tx = Transmitter(channels=2, chirps=2)
     rx = Receiver(channels=2)
 
     radar = Radar(tx, rx, "tdm", 2000)
     target = Target(radar.t_obs + radar.k_space, velocity=-12)
     target_states = target.generate_states(k, 'linearaway')
-    radar.observation(20, target_states[20],
-                      add_noise=True, plot_tx=False, plot_rx=False,
-                      plot_mixed=False, plot_range_fft=False)
+    # radar.observation(20, target_states[20],
+    #                   add_noise=True, plot_tx=False, plot_rx=False,
+    #                   plot_mixed=False, plot_range_fft=False)
     # radar.plot_region(target_states)
+    radar.plot_antennas()

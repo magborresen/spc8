@@ -163,7 +163,8 @@ def plot_rx_signals():
                                     tx_sig,
                                     radar.transmitter.f_carrier,
                                     alpha,
-                                    radar.t_vec)
+                                    radar.t_vec,
+                                    radar.transmitter.t_chirp)
     rx_sig, _ = radar.add_awgn(rx_sig, alpha)
 
     # Plot RX signals
@@ -191,7 +192,8 @@ def plot_mixed_signals():
                                     tx_sig,
                                     radar.transmitter.f_carrier,
                                     alpha,
-                                    radar.t_vec)
+                                    radar.t_vec,
+                                    radar.transmitter.t_chirp)
     rx_sig, _ = radar.add_awgn(rx_sig, alpha)
 
     ## MIXER FUNCTION (this version pads with zeros)
@@ -318,4 +320,4 @@ if __name__ == '__main__':
 
     # plot_alpha([0.5, 0.75, 1])
     # plot_sigma([20, 30, 50])
-    plot_likelihood_map(points=200)
+    # plot_likelihood_map(points=200)
