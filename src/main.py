@@ -11,7 +11,7 @@ from scipy.signal import butter, sosfilt
 
 def monte_carlo(k_obs):
     # Create objects
-    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    tx = Transmitter(channels=2, chirps=10, tx_power=30)
     rx = Receiver(channels=2)
     radar = Radar(tx, rx, "tdm", 2000)
     target = Target(radar.t_obs + radar.k_space, velocity=16.6)
@@ -32,7 +32,7 @@ def monte_carlo(k_obs):
         for k in range(theta.shape[0]):
             # Calculate distances from all antennas to target
             dists = [np.sqrt((radar.rx_pos[0,rx_n] - theta[k][0])**2 + (radar.rx_pos[1,rx_n] - theta[k][1])**2) for rx_n in range(radar.n_channels)]
-            # print(f'k={k}/{k_obs-1}, true distance={max(dists)[0]}')
+            # print(f'k={k}/{k_obs-1}, true distance={max(dists)[0]}', end='\r')
             
             # Stop if target is out of region
             if (np.array(dists) > 2400).any() or (np.array(dists) < 1).any() or cnt_k > k_obs-1:
@@ -40,10 +40,7 @@ def monte_carlo(k_obs):
                 break
             
             # Generate radar observation
-            s_k, y_k, alpha = radar.observation(k, theta[k], add_noise=True)
-            
-            # Estimate range
-            range_est = pf.get_range(y_k, radar.transmitter.slope)
+            range_est, alpha = radar.observation(k, theta[k], add_noise=True)
             
             # Range error and RMSE
             range_error.append(np.array([dists[n]-range_est[n] for n in range(radar.n_channels)]))
@@ -65,4 +62,4 @@ def monte_carlo(k_obs):
     print(f'\nRMSE:\n Theta: {theta_RMSE[-1]}\n Range: {range_RMSE[-1]}')
 
 if __name__ == '__main__':    
-    monte_carlo(100)
+    monte_carlo(1000)
