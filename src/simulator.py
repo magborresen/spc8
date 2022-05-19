@@ -77,7 +77,11 @@ class Simulator:
         particle_color[0] = 'r'
         particle_alpha = np.full(x.shape, 1.0)
         particle_alpha[0] = 1.0
-        self.particle_scat = self.particle_ax.scatter(x, y, alpha=particle_alpha, s=particle_size, c=particle_color)
+        self.particle_scat = self.particle_ax.scatter(x,
+                                                      y,
+                                                      alpha=particle_alpha,
+                                                      s=particle_size,
+                                                      c=particle_color)
         plt.pause(0.1)
 
     def update_particle_animation(self):
@@ -99,7 +103,7 @@ if __name__ == '__main__':
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
-    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=1000, region=region_size)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10, region=region_size)
 
     sim = Simulator(k, radar, target, pf, animate_pf=True)
     for i in range(k):

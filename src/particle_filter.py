@@ -50,10 +50,10 @@ class ParticleFilter():
         self.theta_est = np.concatenate((particle_pos, particle_velocity), axis=1)
 
         # Initialize accelerations
-        self.particle_acc = np.zeros((self.n_particles, 2, 1))
+        self.particle_acc = np.random.normal(loc=0, scale=1, size=(self.n_particles, 2, 1))
 
         # Initialize gains for each particle at each receiver
-        self.alpha_est = np.ones((self.n_particles, self.n_rx_channels), dtype=np.complex128)
+        self.alpha_est = np.zeros((self.n_particles, self.n_rx_channels), dtype=np.complex128)
 
         self.likelihoods = np.zeros((self.n_particles, 1))
 
@@ -63,7 +63,7 @@ class ParticleFilter():
         """
         particle_pos_x = np.random.normal(loc=target_pos[0], scale=100, size=(self.n_particles,1))
         particle_pos_y = np.random.normal(loc=target_pos[1], scale=100, size=(self.n_particles,1))
-        particle_pos = np.zeros((1000, 2, 1))
+        particle_pos = np.zeros((self.n_particles, 2, 1))
         particle_pos[:,0] = particle_pos_x
         particle_pos[:,1] = particle_pos_y
 
@@ -97,8 +97,8 @@ class ParticleFilter():
 
         # Update positions
         self.theta_est[particle][:2] = (self.theta_est[particle][:2] +
-                                          self.theta_est[particle][2:] *
-                                          self._t_obs + self._t_obs**2 * self.particle_acc[particle] / 2)
+                                        self.theta_est[particle][2:] *
+                                        self._t_obs + self._t_obs**2 * self.particle_acc[particle] / 2)
 
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
@@ -194,10 +194,10 @@ class ParticleFilter():
         plt.scatter(self.theta_est[:,0], self.theta_est[:,1])
         plt.scatter(target_state[0],target_state[1])
         # plt.scatter(self.region*0.5, 0, alpha=0.25, s=9e4)
-        
+
         for i, txt in enumerate(self.theta_est):
             plt.annotate(i, (self.theta_est[i,0] + self.region*5e-3, self.theta_est[i,1] + self.region*5e-3))
-        
+
         plt.xlim((0,self.region))
         plt.ylim((0,self.region))
         plt.gca().set_aspect('equal')
@@ -231,4 +231,3 @@ if __name__ == '__main__':
     pf = ParticleFilter(1.33e-7 + 1.8734e-5, 1000)
     pf.init_particles_uniform()
     pf.init_weights()
-    

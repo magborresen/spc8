@@ -131,3 +131,6 @@ dmypy.json
 # Project
 dev/
 /dev/
+/src/plots
+src/plots/
+src/plots

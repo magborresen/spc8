@@ -1,13 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from radar import Radar
 from receiver import Receiver
 from transmitter import Transmitter
 from particle_filter import ParticleFilter
 from target import Target
 from simulator import Simulator
-from scipy.signal import butter, sosfilt
 
 def plot_alpha(rho_list):
     plots_dist = []
@@ -34,10 +32,10 @@ def plot_alpha(rho_list):
                 cnt_k += 1
         plots_dist.append(plot_dist)
         plots_alpha.append(plot_alpha)
-    
-    plots_dist = np.array(plots_dist)    
+
+    plots_dist = np.array(plots_dist)
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
-    for i in range(len(rho_list)):
+    for i, rho in enumerate(rho_list):
         ax.plot(plots_dist[i], plots_alpha[i], label=f'\u03C1 = {rho_list[i]}')
     ax.set_yscale('log')
     ax.grid()
@@ -63,7 +61,6 @@ def plot_sigma(power_list):
         cnt_k = 0
         while cnt_k < k_obs-1:
             theta = target.generate_states(300, method='linear_away')
-            theta_est = []
             for k in range(theta.shape[0]):
                 dists = [np.sqrt((radar.rx_pos[0,rx_n] - theta[k][0])**2 + (radar.rx_pos[1,rx_n] - theta[k][1])**2) for rx_n in range(radar.n_channels)]
                 if (np.array(dists) > 2500).any() or (np.array(dists) < 0).any() or cnt_k > k_obs-1:
@@ -77,7 +74,7 @@ def plot_sigma(power_list):
     plots_dist = np.array(plots_dist)
     plots_noise = np.array(plots_noise)
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
-    for i in range(len(power_list)):
+    for i, pwr in enumerate(power_list):
         ax.plot(plots_dist[i], plots_noise[i], label=f'TX power = {power_list[i]} dBm')
     ax.set_yscale('log')
     ax.grid()
@@ -93,9 +90,9 @@ def plot_tx_signals(oversample=20):
     tx = Transmitter(channels=1, chirps=1, tx_power=30)
     rx = Receiver(channels=1)
     radar = Radar(tx, rx, "tdm", 2000, oversample=oversample)
-    
+
     tx_sig = radar.transmitter.tx_tdm(radar.t_vec)[0]
-    
+
     # Plot chirp signal
     plot_tx_sig = tx_sig[0:10000]
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5))
@@ -107,10 +104,12 @@ def plot_tx_signals(oversample=20):
     fig.suptitle('First 10000 samples of chirp')
     fig.tight_layout()
     plt.savefig('plots/chirp_tx_sig.pdf', dpi=200)
-    
+
     # Plot instantaneous frequency of chirp
-    freq = np.linspace(0, radar.transmitter.bandwidth, int(radar.transmitter.t_chirp * radar.receiver.f_sample))
-    t = np.linspace(0, radar.transmitter.t_chirp, int(radar.transmitter.t_chirp * radar.receiver.f_sample))
+    freq = np.linspace(0, radar.transmitter.bandwidth,
+                       int(radar.transmitter.t_chirp * radar.receiver.f_sample))
+    t = np.linspace(0, radar.transmitter.t_chirp,
+                    int(radar.transmitter.t_chirp * radar.receiver.f_sample))
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5))
     plt.plot(t/1e-6, freq/1e6)
     plt.xlabel('Time [\u03BCs]')
@@ -135,7 +134,7 @@ def plot_tx_signals(oversample=20):
     fig.suptitle('FFT of chirped signal')
     fig.tight_layout()
     plt.savefig('plots/tx_fft_plot_chirp.pdf', dpi=200)
-    
+
     # Plot TX signals for observation
     tx = Transmitter(channels=2, chirps=2, tx_power=30)
     radar = Radar(tx, rx, "tdm", 2000, oversample=oversample)
@@ -194,14 +193,14 @@ def plot_mixed_signals():
                                     alpha,
                                     radar.t_vec)
     rx_sig, _ = radar.add_awgn(rx_sig, alpha)
-    
+
     ## MIXER FUNCTION (this version pads with zeros)
     chirp_len = int(radar.receiver.f_sample * radar.transmitter.t_chirp)
     # Chirp start samples
     samples = np.array([[tx + radar.m_channels*chirp
                         for chirp in range(radar.transmitter.chirps)]
                         for tx in range(radar.m_channels)]) * chirp_len
-    mix_vec = []        
+    mix_vec = []
     for n_ch, y in enumerate(rx_sig):
         # Find echo start sample
         y_sig_start = np.argmax(y > 0)
@@ -235,7 +234,7 @@ def plot_mixed_signals():
     fig.suptitle('Mixed signals for an observation')
     fig.tight_layout()
     plt.savefig('plots/mixed_plot_2_ch.pdf', dpi=200)
-    
+
     range_cube, range_est = radar.range_fft_cube(mix_vec)
     # Plot FFT of mixed signals
     fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(8, 5), sharex=True)
@@ -247,16 +246,16 @@ def plot_mixed_signals():
     freq = n/T
     fft_range = (freq * radar.light_speed /
                 (2 * radar.transmitter.bandwidth/radar.transmitter.t_chirp))
-    sample = np.array([np.argmax(range_cube[n_ch][chirp]) 
-                for chirp in range(radar.m_channels * radar.transmitter.chirps) 
+    sample = np.array([np.argmax(range_cube[n_ch][chirp])
+                for chirp in range(radar.m_channels * radar.transmitter.chirps)
                 for n_ch in range(radar.n_channels)])
     offset = 5
     for n_ch in range(mix_vec.shape[0]):
         for chirp in range(mix_vec.shape[1]):
-            measure = fft_range[np.argmax(range_cube[n_ch][chirp])] 
+            measure = fft_range[np.argmax(range_cube[n_ch][chirp])]
             axs[n_ch].plot(fft_range, np.abs(range_cube[n_ch][chirp]), label=f'$n_{chirp}={measure} m$')
-            # axs2.plot(fft_range[np.min(sample)-offset:np.max(sample+1)+offset], 
-            #           np.abs(range_cube[n_ch][chirp])[np.min(sample)-offset:np.max(sample+1)+offset], 
+            # axs2.plot(fft_range[np.min(sample)-offset:np.max(sample+1)+offset],
+            #           np.abs(range_cube[n_ch][chirp])[np.min(sample)-offset:np.max(sample+1)+offset],
             #           label=f'$n_{chirp}={measure} m$')
         axs[n_ch].set_title(f"RX channel: {n_ch}")
         axs[n_ch].grid()
@@ -270,7 +269,7 @@ def plot_mixed_signals():
 def plot_target(itr = 10):
     target = Target(1, velocity=16)
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
-    
+
     for idx in range(itr):
         theta = target.generate_states(300, method='random')
         axs.scatter(theta[:,0], theta[:,1], label=f'Example {idx}', s=1)
@@ -280,7 +279,7 @@ def plot_target(itr = 10):
     plt.ylabel('$x$ [m]')
     plt.xlabel('$y$ [m]')
     plt.savefig('plots/target_examples.pdf', dpi=200)
-    
+
 if __name__ == '__main__':
     plot_target()
     # plot_tx_signals()
