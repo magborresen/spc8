@@ -280,11 +280,42 @@ def plot_target(itr = 10):
     plt.xlabel('$y$ [m]')
     plt.savefig('plots/target_examples.pdf', dpi=200)
 
+
+def plot_likelihood_map(points=2000):
+    """
+        Plot the distrubtion of the weights given a target location
+    """
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    target_pos = np.array([[500], [500], [0], [10]])
+    target_range, _ = radar.observation(0, target_pos)
+    particle_pos_x = np.linspace(0, radar.region, points)
+    particle_pos_y = np.linspace(0, radar.region, points)
+    particle_filter = ParticleFilter(radar.t_obs + radar.k_space, 2)
+    likelihood_map = np.zeros((points, points))
+
+    for idx, pos_y in enumerate(particle_pos_y):
+        for idy, pos_x in enumerate(particle_pos_x):
+            point_range = radar.get_true_dist(np.array([[pos_x], [pos_y]]))
+            likelihood = particle_filter.get_likelihood(target_range, point_range)
+            likelihood_map[idx][idy] = likelihood
+
+    c_mesh = plt.pcolormesh(particle_pos_x, particle_pos_y, likelihood_map)
+    plt.colorbar(c_mesh)
+    plt.title(f"Likelihoods for target in {target_pos[0][0]}, {target_pos[1][0]}")
+    plt.xlabel("Meters")
+    plt.ylabel("Meters")
+    plt.savefig("plots/likelihood_map.pdf")
+    plt.show()
+
+
 if __name__ == '__main__':
-    plot_target()
+    # plot_target()
     # plot_tx_signals()
     # plot_rx_signals()
     # plot_mixed_signals()
 
     # plot_alpha([0.5, 0.75, 1])
     # plot_sigma([20, 30, 50])
+    plot_likelihood_map(points=200)

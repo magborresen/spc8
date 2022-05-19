@@ -98,7 +98,8 @@ class ParticleFilter():
         # Update positions
         self.theta_est[particle][:2] = (self.theta_est[particle][:2] +
                                         self.theta_est[particle][2:] *
-                                        self._t_obs + self._t_obs**2 * self.particle_acc[particle] / 2)
+                                        self._t_obs + self._t_obs**2 *
+                                        self.particle_acc[particle] / 2)
 
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
@@ -110,17 +111,22 @@ class ParticleFilter():
         #                                         np.square(np.linalg.norm(sk_n[i])))
 
 
-    def get_likelihood(self, particle, target_range, particle_range):
+    def get_likelihood(self, target_range, particle_range):
         """
             Update the likelihood for each particle
+
+            Args:
+                target_range (np.ndarray): Estimated target range to each
+                particle_range (np.ndarray): Particle range to each receiver
         """
         measurement_likelihood_sample = 1.0
         for idx, _ in enumerate(target_range):
             prob = np.exp(-(particle_range[idx] - target_range[idx])**2 /
-                           (2*1))
+                           (2*0.79))
 
             measurement_likelihood_sample *= prob
-        self.likelihoods[particle] = measurement_likelihood_sample
+
+        return measurement_likelihood_sample
 
     def update_weights(self):
         """

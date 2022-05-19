@@ -42,12 +42,11 @@ class Simulator:
             self.particle_filter.predict_particle(particle)
 
             # Find the distance to each particle
-            particle_dist, _ = self.radar.get_true_dist(self.particle_filter.theta_est[particle])
+            particle_dist= self.radar.get_true_dist(self.particle_filter.theta_est[particle])
 
             # Get the observation likelihood given each particle observation
-            self.particle_filter.get_likelihood(particle,
-                                                target_range,
-                                                particle_dist)
+            self.particle_filter.likelihoods[particle] = self.particle_filter.get_likelihood(target_range,
+                                                                                             particle_dist)
         #print(self.particle_filter.likelihoods)
         # Update the weights for all particles
         self.particle_filter.update_weights()
@@ -75,7 +74,7 @@ class Simulator:
         particle_size[1:] /= 20.0
         particle_color = np.full(x.shape, 'b')
         particle_color[0] = 'r'
-        particle_alpha = np.full(x.shape, 1.0)
+        particle_alpha = np.full(x.shape, 0.1)
         particle_alpha[0] = 1.0
         self.particle_scat = self.particle_ax.scatter(x,
                                                       y,
@@ -98,12 +97,12 @@ if __name__ == '__main__':
     region_size = 2000
     k = 100
     tx = Transmitter(channels=2, chirps=10)
-    rx = Receiver(channels=2)
+    rx = Receiver(channels=3)
 
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
-    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10, region=region_size)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
 
     sim = Simulator(k, radar, target, pf, animate_pf=True)
     for i in range(k):

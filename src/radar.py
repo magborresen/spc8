@@ -131,9 +131,21 @@ class Radar:
                              (self.rx_pos[1,rx_n] - theta[1])**2)
                     for rx_n in range(self.n_channels)]
 
+        return np.array(true_dist)
+
+    def get_true_vel(self, theta):
+        """
+            Get the velocity of the target
+
+            Args:
+                theta (np.ndarray): Position and velocity vector of the target
+
+            Returns:
+                true_vel (float): True velocity of the target
+        """
         true_vel = np.linalg.norm((theta[2], theta[3]))
 
-        return np.array(true_dist), true_vel
+        return true_vel
 
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
@@ -260,6 +272,7 @@ class Radar:
             # Calculate the noise
             noise = np.sqrt(n_var / 2) * (np.random.normal(size=(sig_only.shape)) +
                                         1j*np.random.normal(size=(sig_only.shape)))
+
             sig_noise[sig_idx] = signal[sig_idx] + noise
             signals_noise.append(sig_noise)
 
@@ -452,7 +465,8 @@ class Radar:
                                              tx_sig,
                                              self.transmitter.f_carrier,
                                              alpha,
-                                             self.t_vec)
+                                             self.t_vec,
+                                             self.transmitter.t_chirp)
 
         if add_noise:
             rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
