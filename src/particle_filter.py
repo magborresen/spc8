@@ -22,11 +22,10 @@ class ParticleFilter():
         self.alpha_hat = None
         self.alpha_est = None
         self.theta_est = None
-        self.acc = None
+        self.particle_acc = None
         self.weights = None
         self.likelihoods = None
         self.light_speed = 300e6
-        self.init_particles_uniform()
         self.init_weights()
 
     def init_particles_uniform(self) -> None:
@@ -40,22 +39,44 @@ class ParticleFilter():
                 no value
         """
         # Initialize particle positions uniformly
-        target_pos = np.random.uniform(low=0,
+        particle_pos = np.random.uniform(low=0,
                               high=self.region,
                               size=(self.n_particles, 2, 1))
 
         # Initialize particle velocities uniformly
-        target_velocity = np.random.uniform(low=-22, high=22, size=(self.n_particles, 2, 1))
+        particle_velocity = np.random.uniform(low=-22, high=22, size=(self.n_particles, 2, 1))
 
         # Concatenate to create the position and velocity vector theta
-        self.theta_est = np.concatenate((target_pos, target_velocity), axis=1)
+        self.theta_est = np.concatenate((particle_pos, particle_velocity), axis=1)
 
         # Initialize accelerations
-        self.acc = np.zeros((self.n_particles, 2, 1))
+        self.particle_acc = np.zeros((self.n_particles, 2, 1))
 
         # Initialize gains for each particle at each receiver
         self.alpha_est = np.ones((self.n_particles, self.n_rx_channels), dtype=np.complex128)
 
+        self.likelihoods = np.zeros((self.n_particles, 1))
+
+    def init_particles_near_target(self, target_pos):
+        """
+            Initialize the particles to be near the target
+        """
+        particle_pos_x = np.random.normal(loc=target_pos[0], scale=100, size=(self.n_particles,1))
+        particle_pos_y = np.random.normal(loc=target_pos[1], scale=100, size=(self.n_particles,1))
+        particle_pos = np.zeros((1000, 2, 1))
+        particle_pos[:,0] = particle_pos_x
+        particle_pos[:,1] = particle_pos_y
+
+        # Initialize particle velocities uniformly
+        particle_velocity = np.random.uniform(low=-22, high=22, size=(self.n_particles, 2, 1))
+        print(particle_velocity.shape)
+        # Concatenate to create the position and velocity vector theta
+        self.theta_est = np.concatenate((particle_pos, particle_velocity), axis=1)
+
+        # Initialize accelerations
+        self.particle_acc = np.zeros((self.n_particles, 2, 1))
+
+        # Initialize likelihoods
         self.likelihoods = np.zeros((self.n_particles, 1))
 
     def init_weights(self):
@@ -77,62 +98,66 @@ class ParticleFilter():
         # Update positions
         self.theta_est[particle][:2] = (self.theta_est[particle][:2] +
                                           self.theta_est[particle][2:] *
-                                          self._t_obs + self._t_obs**2 * self.acc[particle] / 2)
+                                          self._t_obs + self._t_obs**2 * self.particle_acc[particle] / 2)
 
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
-                                        self._t_obs * self.acc[particle])
+                                        self._t_obs * self.particle_acc[particle])
 
         # Update alphas for each receiver
         #for i in range(sk_n.shape[0]):
         #    self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]), yk_n[i].T) /
         #                                         np.square(np.linalg.norm(sk_n[i])))
 
-    def update_likelihood_fft(self, particle, y_k, x_k_i, slope):
-        """
-            Update the likelihood for each particle
-        """
-        y_k_fft = np.abs(self.fft_filter(y_k))
-        x_k_i_fft = np.abs(self.fft_filter(x_k_i))
-
-        temp = 0
-        for idx in range(y_k_fft.shape[0]):
-            temp += abs(np.trapz(y_k_fft[idx] - x_k_i_fft[idx]))
-
-        self.likelihoods[particle] = np.exp(-temp*1e12)
-
-        range_vec = self.get_range(y_k, slope)
-        print('Range difference (y_k)', range_vec[0] - range_vec[1])
-
 
     def get_likelihood(self, particle, target_range, particle_range):
         """
             Update the likelihood for each particle
         """
-        # Compute the range FFT of the particle
-        #particle_range = self.get_range(x_k_i)
+        measurement_likelihood_sample = 1.0
+        for idx, _ in enumerate(target_range):
+            prob = np.exp(-(particle_range[idx] - target_range[idx])**2 /
+                           (2*1))
 
-        self.likelihoods[particle] = stats.norm(particle_range[0], 100).pdf(target_range)
+            measurement_likelihood_sample *= prob
+        self.likelihoods[particle] = measurement_likelihood_sample
 
     def update_weights(self):
         """
-            Update the posterior probability for each particle target signal
-
-            Args:
-                no value
-
-            Returns:
-                no value
+            Update particle weights
         """
 
-        numerator = self.weights * self.likelihoods
-        denominator = np.sum(self.weights * self.likelihoods)
+        self.weights *= self.likelihoods
+        self.normalize_weights()
 
-        self.weights = numerator / denominator
+    def normalize_weights(self):
+        """
+        Normalize all particle weights.
+        """
+
+        # Compute sum weighted samples
+        sum_weights = np.sum(self.weights)
+
+        # Check if weights are non-zero
+        if sum_weights < 1e-15:
+            print(f"Weight normalization failed: sum of all weights is {sum_weights} (weights will be reinitialized)")
+            # Set uniform weights
+            w_value = 1 / self.n_particles
+            self.weights = np.full((self.n_particles, 1), w_value)
+            return None
+
+        # Return normalized weights
+        self.weights /= sum_weights
 
     def resample(self, strat="systemic"):
         """
             Resamples the weights using filterpy functions
+
+            Args:
+                strat (string): Strategy to use for resampling
+
+            Returns:
+                Indexes (list): List of particle weights that should survive the resampling
         """
 
         if strat=="systemic":
@@ -152,81 +177,9 @@ class ParticleFilter():
             Resample the particles from the indexes found by the resampling scheme.
         """
         self.theta_est[:] = self.theta_est[indexes]
-        self.theta_est[:,:2] *= np.abs(np.random.normal(loc=1, scale=0.0001, size=self.theta_est[:,:2].shape))
+        self.theta_est[:,:2] *= np.abs(np.random.normal(loc=1, scale=0.01, size=self.theta_est[:,:2].shape))
         self.weights.resize(self.n_particles, 1)
         self.weights.fill(1.0 / self.n_particles)
-
-    def get_range(self, sig_vec, slope):
-        """
-            Compute the range FFT of given FMCW IF signal.
-
-            Args:
-                sig_vec (np.ndarray): Array of received signals
-
-            Returns:
-                range_vec (np.ndarray): Vector of scalar ranges for each received signal
-        """
-        range_vec = []
-
-        for _, sig in enumerate(sig_vec):
-            # Calculate FFT of signal
-            fft_sig = np.fft.fft(sig)
-            # Find sample with highest power
-            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
-
-            fft_samples = len(fft_sig)
-            fft_times = fft_samples/(80e6)
-            fft_idx = np.arange(fft_samples, dtype=np.float64)
-            freq = fft_idx/fft_times
-            fft_range = (freq * 300e6 / (2.0 * slope))
-            
-            range_vec.append(fft_range[sample])
-
-        return np.array(range_vec)
-
-    def fft_filter(self, sig_vec, offset=100):
-        """
-            Calculate fft for signals, find where the power is located and
-            neglect samples that is "offset" samples away from the desired
-            spike. 
-
-            Args:
-                sig_vec (np.ndarray): Collection of signals
-                offset (int): How many samples to take from either side
-
-            Returns:
-                filtered_vec (np.ndarray): Filtered signals
-        """        
-
-        # Create the filter
-        nyq = 80e6
-        sos = butter(10, 8e6, fs=nyq, btype='low', analog=False, output='sos')
-
-        fft_sig_vec = []
-        
-        for idx, sig in enumerate(sig_vec):
-            # Calculate FFT of signal
-            fft_sig = np.fft.fft(sig)
-            # Find sample with highest power
-            sample = np.argmax(2.0/len(fft_sig) * np.abs(fft_sig))
-            # Check if sample offset becomes negative (Go with first samples)
-            if sample <= offset:
-                start = 0
-                stop = offset*2
-            # Check if sample offset becomes to large (Go with last samples)
-            elif sample+offset >= fft_sig.shape[0]:
-                start = sig.shape[0] - offset*2
-                stop = sig.shape[0]
-            # Else, take samples +-offset
-            else:
-                start = sample-offset
-                stop = sample+offset
-            
-            fft_sig = sosfilt(sos, fft_sig[start:stop])
-            fft_sig_vec.append(fft_sig)
-            
-        return np.array(fft_sig_vec)
-
 
     def plot_particles(self, target_state):
         """

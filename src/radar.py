@@ -8,7 +8,6 @@ from receiver import Receiver
 from transmitter import Transmitter
 from target import Target
 from scipy.constants import k as Boltzman
-from scipy.signal import correlate
 
 class Radar:
     """
@@ -118,7 +117,7 @@ class Radar:
         plt.legend()
         plt.show()
 
-    def get_target_true_values(self, theta):
+    def get_true_dist(self, theta):
         """
             Get the true distance of the target to each receiver antenna
 
@@ -458,7 +457,7 @@ class Radar:
         mix_vec = self.signal_mixer(rx_sig, tx_sig)        
         # Range-FFT
         range_cube, range_est = self.range_fft_cube(mix_vec)
-        range_true, vel_true = self.get_target_true_values(theta)
+        range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
 

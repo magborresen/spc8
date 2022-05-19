@@ -21,6 +21,7 @@ class Simulator:
         self.states = self.target.generate_states(k_obs_tot, method='random')
         self.particle_filter = particle_filter
         self.target_state = self.states[0]
+        self.particle_filter.init_particles_near_target(self.target_state)
         if self.animate_pf:
             plt.ion()
             # Setup the figure and axes...
@@ -34,23 +35,23 @@ class Simulator:
             Estimate the target parameters for the k'th observation
         """
         self.target_state = self.states[k_obs]
-        _, rx_sig, alpha = self.radar.observation(k_obs, self.target_state, add_noise=True)
-        target_range = self.particle_filter.get_range(rx_sig, self.radar.transmitter.slope)[0]
+        target_range, alpha = self.radar.observation(k_obs, self.target_state, add_noise=True)
         for particle in range(self.particle_filter.n_particles):
 
             # Predict the particle positions using the state space model
             self.particle_filter.predict_particle(particle)
 
             # Find the distance to each particle
-            particle_dist = self.radar.get_true_dist(self.particle_filter.theta_est[particle])
+            particle_dist, _ = self.radar.get_true_dist(self.particle_filter.theta_est[particle])
 
             # Get the observation likelihood given each particle observation
             self.particle_filter.get_likelihood(particle,
                                                 target_range,
                                                 particle_dist)
-
+        #print(self.particle_filter.likelihoods)
         # Update the weights for all particles
         self.particle_filter.update_weights()
+
         if self.particle_filter.neff() < self.particle_filter.n_particles / 2:
             # Resample the weights
             print("Not enough effective weights... Resampling...")
@@ -74,7 +75,9 @@ class Simulator:
         particle_size[1:] /= 20.0
         particle_color = np.full(x.shape, 'b')
         particle_color[0] = 'r'
-        self.particle_scat = self.particle_ax.scatter(x, y, s=particle_size, c=particle_color)
+        particle_alpha = np.full(x.shape, 1.0)
+        particle_alpha[0] = 1.0
+        self.particle_scat = self.particle_ax.scatter(x, y, alpha=particle_alpha, s=particle_size, c=particle_color)
         plt.pause(0.1)
 
     def update_particle_animation(self):
@@ -93,13 +96,12 @@ if __name__ == '__main__':
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=2)
 
-    radar = Radar(tx, rx, "tdm", region_size, snr=50)
+    radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
-    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=1000, region=region_size)
 
     sim = Simulator(k, radar, target, pf, animate_pf=True)
     for i in range(k):
-        print(f"Observation {i}")
         sim.target_estimate(i)
     plt.waitforbuttonpress()
