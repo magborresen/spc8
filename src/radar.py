@@ -180,11 +180,15 @@ class Radar:
                 r_k (np.ndarray): Short time trajectory model based 
                                   on original position and velocity.
         """
-        # Normalized unitvector for position (line-of-sight)
-        los = theta[:2] / np.linalg.norm(theta[:2])
+        # Normalized unitvector for position (line-of-sight        
+        p_antenna = np.array([[self.region/2], [0]])
+        p_offset = p_antenna - theta[:2]
+        los = p_offset / np.linalg.norm(p_offset)
+        # los = theta[:2] / np.linalg.norm(theta[:2])
 
         # Target trajectory within acquisition period
         r_k = theta[:2] + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
+        # r_k = theta[:2] + (t_vec - t_vec[0]) * ((los[0]*theta[2]) + (los[1]*theta[3]))
 
         return r_k
 
