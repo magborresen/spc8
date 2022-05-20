@@ -359,6 +359,38 @@ def plot_distribution_3d(points=200):
     plt.savefig("plots/likelihood_map_3d.pdf")
     plt.show()
 
+def plot_particle_observations():
+    """
+        Plot 6 observations in subplots with particles and target
+    """
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    particle_filter = ParticleFilter(t_obs_tot, radar.n_channels, n_particles=10000)
+    sim = Simulator(6, radar, target, particle_filter)
+    fig, ax = plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True)
+    ax[0][0].set_xlim(0, 2000)
+    ax[0][0].set_ylim(0, 2000)
+    target_state = sim.target_state
+    ax[0][0].scatter(sim.particle_filter.theta_est[:,0], sim.particle_filter.theta_est[:,1], marker='.', alpha=0.2, color='b')
+    ax[0][0].scatter(target_state[0], target_state[1], marker="x", color="r")
+    ax[0][0].set_title("Initialization")
+    for k, plot in enumerate(ax.ravel()[1:]):
+        sim.target_estimate(k)
+        target_state = sim.target_state
+        plot.scatter(sim.particle_filter.theta_est[:,0], sim.particle_filter.theta_est[:,1], marker='.', alpha=0.1, color='b', s=1.0)
+        plot.scatter(target_state[0], target_state[1], marker="x", color="r")
+        plot.set_title(f"Observation {k}")
+
+    plt.setp(ax[-1, :], xlabel='Meters')
+    plt.setp(ax[:, 0], ylabel='Meters')
+    plt.tight_layout()
+    plt.savefig("plots/observation_comic.pdf")
+    plt.show()
+
+
 if __name__ == '__main__':
     # plot_target()
     # plot_tx_signals()
@@ -369,4 +401,5 @@ if __name__ == '__main__':
     # plot_sigma([20, 30, 50])
     #plot_likelihood_map(points=200)
     #plot_distribution_2d()
-    plot_distribution_3d()
+    #plot_distribution_3d()
+    plot_particle_observations()
