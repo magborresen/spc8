@@ -48,7 +48,8 @@ class Simulator:
             # Get the observation likelihood given each particle observation
             self.particle_filter.likelihoods[particle] = self.particle_filter.get_likelihood(target_range,
                                                                                              particle_dist)
-        #print(self.particle_filter.likelihoods)
+
+
         # Update the weights for all particles
         self.particle_filter.update_weights()
         effective_weights = self.particle_filter.neff()
