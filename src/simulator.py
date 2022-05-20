@@ -21,8 +21,8 @@ class Simulator:
         self.states = self.target.generate_states(k_obs_tot, method='random')
         self.particle_filter = particle_filter
         self.target_state = self.states[0]
-        #self.particle_filter.init_particles_uniform()
-        self.particle_filter.init_particles_near_target(self.target_state)
+        self.particle_filter.init_particles_uniform()
+        #self.particle_filter.init_particles_near_target(self.target_state)
         if self.animate_pf:
             plt.ion()
             # Setup the figure and axes...

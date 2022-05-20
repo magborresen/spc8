@@ -25,6 +25,10 @@ class ParticleFilter():
         self.weights = None
         self.likelihoods = None
         self.light_speed = 300e6
+        self.x_min = 0
+        self.y_min = 0
+        self.x_max = self.region
+        self.y_max = self.region
         self.init_weights()
 
     def init_particles_uniform(self) -> None:
@@ -107,6 +111,29 @@ class ParticleFilter():
         # Update velocities
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
                                         self._t_obs * self.particle_acc[particle])
+
+        self.validate_state(particle)
+
+    def validate_state(self, particle):
+        """
+            Validate that the position of the particle is within the region
+
+            Args:
+                particle (np.ndarray): particle state vector
+
+            Returns:
+                None
+        """
+        par_theta = self.theta_est[particle]
+        noise = np.abs(np.random.normal())
+        if par_theta[0] < self.x_min:
+            par_theta[0] = self.x_min + noise
+        if par_theta[0] > self.x_max:
+            par_theta[0] = self.x_max - noise
+        if par_theta[1] < self.y_min:
+            par_theta[1] = self.y_min + noise
+        if par_theta[1] > self.y_max:
+            par_theta[1] = self.y_max - noise
 
     def save_theta_hist(self):
         """
@@ -223,7 +250,7 @@ class ParticleFilter():
 
         return posterior_est
 
-    def get_estimated_state(self):
+    def get_estimated_state(self) -> np.ndarray:
         """
             Get the estimated state of the target
 
@@ -231,13 +258,14 @@ class ParticleFilter():
                 None
 
             Returns:
-                state_est (float): Estimated state of the target
+                state_est (np.ndarray): Estimated state of the target with x- y positions
+                                        and velocities
         """
         state_est = np.sum(self.theta_est * np.expand_dims(self.weights, axis=1), axis=0)
 
         return state_est
 
-    def plot_particles(self, target_state):
+    def plot_particles(self):
         """
             Plot the particle positions in the k'th observation
 
@@ -248,17 +276,12 @@ class ParticleFilter():
                 no value
         """
         plt.scatter(self.theta_est[:,0], self.theta_est[:,1])
-        plt.scatter(target_state[0],target_state[1])
-        # plt.scatter(self.region*0.5, 0, alpha=0.25, s=9e4)
 
-        for i, txt in enumerate(self.theta_est):
-            plt.annotate(i, (self.theta_est[i,0] + self.region*5e-3, self.theta_est[i,1] + self.region*5e-3))
-
-        plt.xlim((0,self.region))
-        plt.ylim((0,self.region))
+        plt.xlim((0, self.region))
+        plt.ylim((0, self.region))
         plt.gca().set_aspect('equal')
-        plt.xlabel("x position [m]")
-        plt.ylabel("y position [m]")
+        plt.xlabel("Meters")
+        plt.ylabel("Meters")
         plt.title("Particle Locations")
         plt.show()
 

@@ -390,6 +390,40 @@ def plot_particle_observations():
     plt.savefig("plots/observation_comic.pdf")
     plt.show()
 
+def plot_target_estimate():
+    """
+        Plot the target true location vs the estimated location
+    """
+    k_obs_tot = 50
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    particle_filter = ParticleFilter(t_obs_tot, radar.n_channels, n_particles=10000)
+    sim = Simulator(k_obs_tot, radar, target, particle_filter)
+    fig, ax = plt.subplots(nrows=1, ncols=2)
+    ax[0].set_xlim(0, 2000)
+    ax[0].set_ylim(0, 2000)
+
+    for k in range(k_obs_tot):
+        sim.target_estimate(k)
+        target_true_state = sim.target_state
+        target_est_state = sim.particle_filter.get_estimated_state()
+        ax[0].scatter(target_true_state[0], target_true_state[1], color='r', marker='x')
+        ax[0].scatter(target_est_state[0], target_est_state[1], color='b', marker='x')
+        ax[1].scatter(target_true_state[0], target_true_state[1], color='r', marker='x')
+        ax[1].scatter(target_est_state[0], target_est_state[1], color='b', marker='x')
+
+    ax[0].set_title(f"True vs. Estimated state {k_obs_tot} observations")
+    ax[1].set_title("Zoomed")
+    ax[0].set_ylabel("Meters")
+    ax[0].set_xlabel("Meters")
+    ax[1].set_xlabel("Meters")
+    plt.legend(("True state", "Estimated state"))
+    plt.gca().set_aspect('equal')
+    plt.savefig("plots/true_estimate_states.pdf")
+    plt.show()
 
 if __name__ == '__main__':
     # plot_target()
@@ -403,3 +437,4 @@ if __name__ == '__main__':
     #plot_distribution_2d()
     #plot_distribution_3d()
     plot_particle_observations()
+    #plot_target_estimate()

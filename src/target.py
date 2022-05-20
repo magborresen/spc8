@@ -19,9 +19,9 @@ class Target():
         self.init_state = None
 
     def acceleration(self, k_tot : int, method):
-        """ 
+        """
             Generate target accelerations for all observations.
-        
+
             A method can be defined, depending on what kind of movement pattern
             is desired for the target.
 
@@ -43,17 +43,17 @@ class Target():
             vel_y = np.sqrt(self.velocity**2 - vel_x**2)
 
             direction = np.random.randint(4)
-            
+
             if direction == 0: # From the left
-                self.init_state = np.array([[0], 
+                self.init_state = np.array([[0],
                                             [np.random.uniform(0, 0.9 * self.region*vel_y/self.velocity)],
                                             [vel_x], [vel_y]])
             elif direction == 1: # From the right
-                self.init_state = np.array([[self.region], 
+                self.init_state = np.array([[self.region],
                                             [np.random.uniform(0, 0.9 * self.region*vel_y/self.velocity)],
                                             [-vel_x], [vel_y]])
             else: # From the top
-                self.init_state = np.array([[np.random.uniform(0, self.region)], 
+                self.init_state = np.array([[np.random.uniform(0, self.region)],
                                             [self.region],
                                             [vel_x], [-vel_y]])
         # Linear, away from origin:
@@ -65,7 +65,7 @@ class Target():
             self.init_state = np.array([[1000], [2000],
                                         [0], [-self.velocity]])
         ax = np.random.normal(0, 0.1, k_tot)#np.zeros((1,k_tot))
-        ay = np.zeros((1,k_tot))
+        ay = np.random.normal(0, 0.1, k_tot)
 
         acc = np.vstack((ax,ay))
         return acc
@@ -81,12 +81,12 @@ class Target():
                 state (list): List of k states
         """
         acc = self.acceleration(k_tot, method)
-        state = [self.init_state] 
+        state = [self.init_state]
         for i in range(1,k_tot):
-            state.append(np.dot(self.F, state[i-1]) 
+            state.append(np.dot(self.F, state[i-1])
                          + np.dot(self.G, np.array([[acc[0,i]],[acc[1,i]]])))
-        return np.array(state) 
-    
+        return np.array(state)
+
     def plot_region(self, states, zoom=False):
         """
             Plots the observation region with antenna locations and trajectory
@@ -114,19 +114,19 @@ class Target():
         plt.show()
 
     def get_velocities(self, target_states):
-        
+
         vel = []
         for idx, state in enumerate(target_states):
             vel.append(np.linalg.norm((state[2], state[3])))
-            
+
         vel = np.array(vel)
-        
+
         print(f'Minimum: {np.min(vel)}\nMaximum: {np.max(vel)}\nMean: {np.mean(vel)}')
-        
+
 if __name__ == '__main__':
     t_obs = 1.0003
-    target = Target(t_obs, 2000, velocity=60)
-    states = target.generate_states(100, method='random')
+    target = Target(t_obs, 2000, velocity=16.6)
+    states = target.generate_states(147, method='random')
     target.plot_region(states)
-    
+
     target.get_velocities(states)
