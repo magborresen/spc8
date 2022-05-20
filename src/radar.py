@@ -63,7 +63,7 @@ class Radar:
                                   np.zeros(self.m_channels)])
 
         self.rx_pos = np.array([(self.region / 2 + self.rx_tx_spacing / 2 +
-                                np.linspace(self.wavelength * 2,
+                                np.linspace(self.wavelength / 2,
                                             self.n_channels * self.wavelength/2,
                                             self.n_channels)),
                                 np.zeros(self.n_channels)])

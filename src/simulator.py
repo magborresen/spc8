@@ -21,12 +21,13 @@ class Simulator:
         self.states = self.target.generate_states(k_obs_tot, method='random')
         self.particle_filter = particle_filter
         self.target_state = self.states[0]
+        #self.particle_filter.init_particles_uniform()
         self.particle_filter.init_particles_near_target(self.target_state)
         if self.animate_pf:
             plt.ion()
             # Setup the figure and axes...
             self.particle_fig, self.particle_ax = plt.subplots()
-            self.particle_ax.set_title(f"Observation {0}")
+            self.particle_ax.set_title(f"{self.particle_filter.n_particles} Particles; Observation {0}")
             # Then setup animation
             self.setup_particle_animation()
 
@@ -50,16 +51,18 @@ class Simulator:
         #print(self.particle_filter.likelihoods)
         # Update the weights for all particles
         self.particle_filter.update_weights()
-
-        if self.particle_filter.neff() < self.particle_filter.n_particles / 2:
+        effective_weights = self.particle_filter.neff()
+        if effective_weights < self.particle_filter.n_particles / 2:
             # Resample the weights
-            print("Not enough effective weights... Resampling...")
+            print(f"Effetive weights is {effective_weights}... Resampling...")
             indexes = self.particle_filter.resample()
             self.particle_filter.resample_from_index(indexes)
 
         if self.animate_pf:
             self.update_particle_animation()
-            self.particle_ax.set_title(f"Observation {k_obs}")
+            self.particle_ax.set_title(f"{self.particle_filter.n_particles} Particles; Observation {k_obs}")
+
+        self.particle_filter.save_theta_hist()
 
     def setup_particle_animation(self):
         """
@@ -97,7 +100,7 @@ if __name__ == '__main__':
     region_size = 2000
     k = 100
     tx = Transmitter(channels=2, chirps=10)
-    rx = Receiver(channels=3)
+    rx = Receiver(channels=10)
 
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space

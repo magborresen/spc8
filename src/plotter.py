@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+from matplotlib.ticker import LinearLocator
 from radar import Radar
 from receiver import Receiver
 from transmitter import Transmitter
@@ -309,6 +311,51 @@ def plot_likelihood_map(points=2000):
     plt.savefig("plots/likelihood_map.pdf")
     plt.show()
 
+def plot_distribution_2d(ranges=2400):
+    """
+        Plot the distrubtion of the weights given a target location
+    """
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=2)
+    radar = Radar(tx, rx, "tdm", 2000)
+    target_pos = np.array([[500], [500], [0], [10]])
+    target_range, _ = radar.observation(0, target_pos)
+    particle_ranges = np.linspace((0, 0), (radar.region, radar.region), ranges)
+    particle_filter = ParticleFilter(radar.t_obs + radar.k_space, 2)
+    likelihoods = []
+
+    for _, particle_range in enumerate(particle_ranges):
+        likelihoods.append(particle_filter.get_likelihood(target_range, particle_range))
+    plt.plot(particle_ranges, likelihoods)
+    plt.show()
+
+
+def plot_distribution_3d(points=200):
+    """
+        Plot the distrubtion of the weights given a target location
+    """
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    target_pos = np.array([[500], [500], [0], [10]])
+    target_range, _ = radar.observation(0, target_pos)
+    particle_pos_x = np.linspace(0, radar.region, points)
+    particle_pos_y = np.linspace(0, radar.region, points)
+    particle_mesh = np.meshgrid(particle_pos_x, particle_pos_y)
+    particle_filter = ParticleFilter(radar.t_obs + radar.k_space, 2)
+
+    point_range = radar.get_true_dist(particle_mesh)
+    likelihood = particle_filter.get_likelihood(target_range, point_range)
+
+    fig = plt.figure()
+    ax = plt.axes(projection="3d")
+    ax.plot_surface(particle_mesh[0], particle_mesh[1], likelihood, rstride=1, cstride=1, cmap='viridis', edgecolor='none')
+    plt.title("Map of likelihoods over observation region")
+    ax.set_xlabel("Meters")
+    ax.set_ylabel("Meters")
+    ax.set_zlabel("Likelihood")
+    plt.savefig("plots/likelihood_map_3d.pdf")
+    plt.show()
 
 if __name__ == '__main__':
     # plot_target()
@@ -318,4 +365,6 @@ if __name__ == '__main__':
 
     # plot_alpha([0.5, 0.75, 1])
     # plot_sigma([20, 30, 50])
-    plot_likelihood_map(points=200)
+    #plot_likelihood_map(points=200)
+    #plot_distribution_2d()
+    plot_distribution_3d()

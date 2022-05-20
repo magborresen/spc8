@@ -4,7 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-from filterpy.monte_carlo import systematic_resample
+from filterpy.monte_carlo import systematic_resample, residual_resample, stratified_resample, multinomial_resample
 from scipy.signal import butter, sosfilt
 
 
@@ -18,10 +18,9 @@ class ParticleFilter():
         self.n_rx_channels = n_rx_channels
         self.region = region
         self._t_obs = t_obs
-        self.phi_hat = None
-        self.alpha_hat = None
         self.alpha_est = None
         self.theta_est = None
+        self.theta_est_all_k = None
         self.particle_acc = None
         self.weights = None
         self.likelihoods = None
@@ -49,6 +48,8 @@ class ParticleFilter():
         # Concatenate to create the position and velocity vector theta
         self.theta_est = np.concatenate((particle_pos, particle_velocity), axis=1)
 
+        self.theta_est_all_k = self.theta_est
+
         # Initialize accelerations
         self.particle_acc = np.random.normal(loc=0, scale=1, size=(self.n_particles, 2, 1))
 
@@ -69,9 +70,11 @@ class ParticleFilter():
 
         # Initialize particle velocities uniformly
         particle_velocity = np.random.uniform(low=-22, high=22, size=(self.n_particles, 2, 1))
-        print(particle_velocity.shape)
+
         # Concatenate to create the position and velocity vector theta
         self.theta_est = np.concatenate((particle_pos, particle_velocity), axis=1)
+
+        self.theta_est_all_k = self.theta_est
 
         # Initialize accelerations
         self.particle_acc = np.zeros((self.n_particles, 2, 1))
@@ -105,10 +108,17 @@ class ParticleFilter():
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
                                         self._t_obs * self.particle_acc[particle])
 
-        # Update alphas for each receiver
-        #for i in range(sk_n.shape[0]):
-        #    self.alpha_est[particle][i] = (np.dot(np.conjugate(sk_n[i]), yk_n[i].T) /
-        #                                         np.square(np.linalg.norm(sk_n[i])))
+    def save_theta_hist(self):
+        """
+            Save the history of predicted positions
+
+            Args:
+                None
+
+            Returns:
+                None
+        """
+        self.theta_est_all_k = np.c_[self.theta_est_all_k, self.theta_est]
 
 
     def get_likelihood(self, target_range, particle_range):
@@ -122,7 +132,7 @@ class ParticleFilter():
         measurement_likelihood_sample = 1.0
         for idx, _ in enumerate(target_range):
             prob = np.exp(-(particle_range[idx] - target_range[idx])**2 /
-                           (2*0.79))
+                           (2*0.79**2))
 
             measurement_likelihood_sample *= prob
 
@@ -157,7 +167,8 @@ class ParticleFilter():
 
     def resample(self, strat="systemic"):
         """
-            Resamples the weights using filterpy functions
+            Resamples the weights using filterpy functions and returns the indexes to use
+            after resampling.
 
             Args:
                 strat (string): Strategy to use for resampling
@@ -166,8 +177,14 @@ class ParticleFilter():
                 Indexes (list): List of particle weights that should survive the resampling
         """
 
-        if strat=="systemic":
+        if strat == "systemic":
             indexes = systematic_resample(self.weights)
+        if strat == "residual":
+            indexes = residual_resample(self.weights)
+        if strat == "stratified":
+            indexes = stratified_resample(self.weights)
+        if strat == "multinomial":
+            indexes = multinomial_resample(self.weights)
 
         return indexes
 
@@ -186,6 +203,39 @@ class ParticleFilter():
         self.theta_est[:,:2] *= np.abs(np.random.normal(loc=1, scale=0.01, size=self.theta_est[:,:2].shape))
         self.weights.resize(self.n_particles, 1)
         self.weights.fill(1.0 / self.n_particles)
+
+    def get_posterior(self, target_true_hist):
+        """
+            Get the estimated posterior distribution
+
+            Args:
+                target_true_hist (np.ndarray): History of true distances and
+                                               velocities of the target
+
+            Returns:
+                posterior_est (float): Estimated posterior pdf
+        """
+        omega_diff = target_true_hist - self.theta_est_all_k
+
+        omega_idx = np.where(omega_diff > 1e-15, 1, 0)
+
+        posterior_est = np.sum(self.weights * omega_idx)
+
+        return posterior_est
+
+    def get_estimated_state(self):
+        """
+            Get the estimated state of the target
+
+            Args:
+                None
+
+            Returns:
+                state_est (float): Estimated state of the target
+        """
+        state_est = np.sum(self.theta_est * np.expand_dims(self.weights, axis=1), axis=0)
+
+        return state_est
 
     def plot_particles(self, target_state):
         """
