@@ -1,7 +1,9 @@
+import os
+from timeit import default_timer as timer
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
-from matplotlib.ticker import LinearLocator
+from tqdm import tqdm
 from radar import Radar
 from receiver import Receiver
 from transmitter import Transmitter
@@ -425,6 +427,163 @@ def plot_target_estimate():
     plt.savefig("plots/true_estimate_states.pdf")
     plt.show()
 
+def plot_execution_time():
+    """
+        Plot the execution time over different counts of particles
+    """
+    k_obs_tot = 50
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    particle_counts = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
+    exe_times = []
+    exe_times_tot = []
+    for count in tqdm(particle_counts):
+        particle_filter = ParticleFilter(t_obs_tot, radar.n_channels, n_particles=count)
+        sim = Simulator(k_obs_tot, radar, target, particle_filter)
+        exe_time = 0
+        start_tot = timer()
+        for k in range(k_obs_tot):
+            start = timer()
+            sim.target_estimate(k)
+            stop = timer()
+            exe_time += stop - start
+        stop_tot = timer()
+        exe_times_tot.append(stop_tot - start_tot)
+        exe_times.append(exe_time/ k_obs_tot)
+
+    plt.figure(0)
+    plt.plot(particle_counts, exe_times, label="Avg. execution time 1 observation")
+    plt.title("Execution time over number of particles")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.savefig("plots/exe_time_avg.pdf")
+    plt.figure(1)
+    plt.plot(particle_counts, exe_times_tot, label=f"Execution time for {k_obs_tot} observations")
+    plt.title(f"Total execution time for {k_obs_tot} observations")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.savefig("plots/exe_time_tot.pdf")
+    plt.show()
+
+def plot_execution_time_vec():
+    """
+        Plot the execution time over different counts of particles
+    """
+    k_obs_tot = 50
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    particle_counts = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
+    exe_times = []
+    exe_times_tot = []
+    for count in tqdm(particle_counts):
+        particle_filter = ParticleFilter(t_obs_tot, radar.n_channels, n_particles=count)
+        sim = Simulator(k_obs_tot, radar, target, particle_filter)
+        exe_time = 0
+        start_tot = timer()
+        for k in range(k_obs_tot):
+            start = timer()
+            sim.target_estimate_vectorized(k)
+            stop = timer()
+            exe_time += stop - start
+        stop_tot = timer()
+        exe_times_tot.append(stop_tot - start_tot)
+        exe_times.append(exe_time/ k_obs_tot)
+
+    plt.figure(0)
+    plt.plot(particle_counts, exe_times, label="Avg. execution time 1 observation")
+    plt.title("Execution time over number of particles (vectorized)")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.savefig("plots/exe_time_avg_vec.pdf")
+    plt.figure(1)
+    plt.plot(particle_counts, exe_times_tot, label=f"Execution time for {k_obs_tot} observations")
+    plt.title(f"Total execution time for {k_obs_tot} observations (vectorized)")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.savefig("plots/exe_time_tot_vec.pdf")
+    plt.show()
+
+
+def plot_resampling():
+    """
+        Plot execution times for different resampling schemes
+    """
+    k_obs_tot = 50
+    tx = Transmitter(channels=2, chirps=2, tx_power=30)
+    rx = Receiver(channels=5)
+    radar = Radar(tx, rx, "tdm", 2000)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    particle_counts = [100, 500, 1000, 2000, 5000, 10000]
+    resampling_schemes = ["systemic", "multinomial", "stratified"]
+    exe_times = {key: list() for key in resampling_schemes}
+    exe_times_tot = {key: list() for key in resampling_schemes}
+    for count in tqdm(particle_counts):
+        particle_filter = ParticleFilter(t_obs_tot, radar.n_channels, n_particles=count)
+        sim = Simulator(k_obs_tot, radar, target, particle_filter)
+        exe_time = 0
+        for scheme in resampling_schemes:
+            start_tot = timer()
+            for k in range(k_obs_tot):
+                start = timer()
+                sim.target_estimate(k, resampling=scheme)
+                stop = timer()
+                exe_time += stop - start
+            stop_tot = timer()
+            exe_times_tot[scheme].append(stop_tot - start_tot)
+            exe_times[scheme].append(exe_time / k_obs_tot)
+
+    plt.figure(0)
+    for key, values in exe_times.items():
+        plt.plot(particle_counts, values, label=key)
+    plt.title("Execution time over number of particles")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.legend()
+    plt.savefig("plots/exe_time_avg_resample.pdf")
+    plt.figure(1)
+    for key, values in exe_times_tot.items():
+        plt.plot(particle_counts, values, label=key)
+    plt.title(f"Total execution time for {k_obs_tot} observations")
+    plt.xlabel("Number of particles")
+    plt.ylabel("Execution time [s]")
+    plt.xticks(particle_counts)
+    plt.xscale('log')
+    plt.legend()
+    plt.savefig("plots/exe_time_tot_resample.pdf")
+    plt.show()
+
+def plot_theta_csv():
+    dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    theta_rmse = os.path.join(dirname, "sim_results/theta_rmse.csv")
+    theta_rmse_vectorized = os.path.join(dirname, "sim_results/theta_rmse_vectorized.csv")
+    df_theta_rmse = pd.read_csv(theta_rmse)
+    df_theta_rmse_vectorized = pd.read_csv(theta_rmse_vectorized)
+    plt.plot(df_theta_rmse['Position RMSE x'], label="Position RMSE x")
+    plt.plot(df_theta_rmse['Position RMSE y'], label="Position RMSE y")
+    plt.legend()
+    plt.xlabel("Iteration")
+    plt.ylabel("RMSE [m]")
+    plt.savefig("plots/theta_rmse.pdf")
+    plt.show()
+
+
 if __name__ == '__main__':
     # plot_target()
     # plot_tx_signals()
@@ -436,5 +595,9 @@ if __name__ == '__main__':
     #plot_likelihood_map(points=200)
     #plot_distribution_2d()
     #plot_distribution_3d()
-    plot_particle_observations()
+    #plot_particle_observations()
     #plot_target_estimate()
+    #plot_execution_time()
+    #plot_resampling()
+    #plot_execution_time_vec()
+    plot_theta_csv()
