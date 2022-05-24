@@ -133,6 +133,22 @@ class Radar:
 
         return np.array(true_dist)
 
+    def get_true_dist_vectorized(self, theta):
+        """
+            Get the true distance of the target to each receiver antenna
+
+            Args:
+                theta (np.ndarray): Position and velocity vector of the target
+
+            Returns:
+                true_dist (list): List of eucledian distances to each of the receiver antennas
+        """
+        true_dist = [np.sqrt((self.rx_pos[0,rx_n] - theta[:,0])**2 +
+                             (self.rx_pos[1,rx_n] - theta[:,1])**2)
+                    for rx_n in range(self.n_channels)]
+
+        return np.array(true_dist)
+
     def get_true_vel(self, theta):
         """
             Get the velocity of the target

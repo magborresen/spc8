@@ -114,6 +114,22 @@ class ParticleFilter():
 
         self.validate_state(particle)
 
+    def predict_particle_vectorized(self):
+        """
+            Update particle parameters for the k'th observation
+        """
+
+        # Update positions
+        self.theta_est[:, :2] = (self.theta_est[:, :2] +
+                                        self.theta_est[:, 2:] *
+                                        self._t_obs + self._t_obs**2 *
+                                        self.particle_acc / 2)
+
+        # Update velocities
+        self.theta_est[:, 2:] = (self.theta_est[:, :2] +
+                                        self._t_obs * self.particle_acc)
+
+
     def validate_state(self, particle):
         """
             Validate that the position of the particle is within the region
@@ -183,7 +199,7 @@ class ParticleFilter():
 
         # Check if weights are non-zero
         if sum_weights < 1e-15:
-            print(f"Weight normalization failed: sum of all weights is {sum_weights} (weights will be reinitialized)")
+            #print(f"Weight normalization failed: sum of all weights is {sum_weights} (weights will be reinitialized)")
             # Set uniform weights
             w_value = 1 / self.n_particles
             self.weights = np.full((self.n_particles, 1), w_value)
