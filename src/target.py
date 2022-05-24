@@ -41,21 +41,39 @@ class Target():
             # Random velocity
             vel_x = np.sqrt(np.random.uniform(0, self.velocity**2))
             vel_y = np.sqrt(self.velocity**2 - vel_x**2)
-
+            corner_cut = 0.8
             direction = np.random.randint(4)
 
             if direction == 0: # From the left
+                vel_x = np.sqrt(np.random.uniform(0, self.velocity**2))
+                vel_y = np.sqrt(self.velocity**2 - vel_x**2)
+                start = np.random.uniform(0, self.region * (1 - vel_y / self.velocity))
+                if start > self.region/3:
+                    vel_y *= (-1)**np.random.randint(1,3)
+                    start = min(start, corner_cut*start)
+                
                 self.init_state = np.array([[0],
-                                            [np.random.uniform(0, 0.9 * self.region*vel_y/self.velocity)],
+                                            [start],
                                             [vel_x], [vel_y]])
+                
             elif direction == 1: # From the right
+                vel_x = np.sqrt(np.random.uniform(0, self.velocity**2))
+                vel_y = np.sqrt(self.velocity**2 - vel_x**2)
+                start = np.random.uniform(0, self.region * (1 - vel_y / self.velocity))
+                if start > self.region/2:
+                    vel_y *= (-1)**np.random.randint(1,3)
+                    start = min(start, corner_cut*start)
+                
                 self.init_state = np.array([[self.region],
-                                            [np.random.uniform(0, 0.9 * self.region*vel_y/self.velocity)],
+                                            [start],
                                             [-vel_x], [vel_y]])
-            else: # From the top
-                self.init_state = np.array([[np.random.uniform(0, self.region)],
+                
+            else: # From the top 
+                vel_y = np.sqrt(np.random.uniform(0.6 * self.velocity**2, self.velocity**2))
+                vel_x = np.sqrt(self.velocity**2 - vel_y**2)
+                self.init_state = np.array([[np.random.uniform(0.2 * self.region, corner_cut * self.region)],
                                             [self.region],
-                                            [vel_x], [-vel_y]])
+                                            [(-1)**np.random.randint(1,3) * vel_x], [-vel_y]])
         # Linear, away from origin:
         elif method == 'linear_away':
             self.init_state = np.array([[1000], [10],
@@ -130,3 +148,16 @@ if __name__ == '__main__':
     target.plot_region(states)
 
     target.get_velocities(states)
+    
+    # itr = 3000
+    # _, ax = plt.subplots()
+    # ax.set_aspect(1)
+    # for i in range(itr):
+    #     states = target.generate_states(15, method='random')
+    #     ax.scatter(states[:,0], states[:,1])
+    # plt.title(f'First 15 observations for {itr} trajectories')
+    # plt.ylabel('y [m]')
+    # plt.xlabel('x [m]')
+    # ax.set_xlim(0, 2000)
+    # ax.set_ylim(0, 2000)
+    # plt.show()

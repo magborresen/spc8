@@ -273,7 +273,7 @@ def plot_mixed_signals():
     plt.savefig('plots/mixed_fft_plot_2_ch.pdf', dpi=200)
 
 def plot_target(itr = 10):
-    target = Target(1, velocity=16)
+    target = Target(1, velocity=16.6)
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
 
     for idx in range(itr):
@@ -285,6 +285,19 @@ def plot_target(itr = 10):
     plt.ylabel('$x$ [m]')
     plt.xlabel('$y$ [m]')
     plt.savefig('plots/target_examples.pdf', dpi=200)
+    
+    itr = 3000
+    _, ax = plt.subplots()
+    ax.set_aspect(1)
+    for i in range(itr):
+        states = target.generate_states(15, method='random')
+        ax.scatter(states[:,0], states[:,1])
+    plt.title(f'First 15 observations for {itr} trajectories')
+    plt.ylabel('y [m]')
+    plt.xlabel('x [m]')
+    ax.set_xlim(0, 2000)
+    ax.set_ylim(0, 2000)
+    plt.savefig('plots/targets_simulation.pdf', dpi=200)
 
 
 def plot_likelihood_map(points=2000):
@@ -585,7 +598,7 @@ def plot_theta_csv():
 
 
 if __name__ == '__main__':
-    # plot_target()
+    plot_target()
     # plot_tx_signals()
     # plot_rx_signals()
     # plot_mixed_signals()
@@ -601,3 +614,4 @@ if __name__ == '__main__':
     #plot_resampling()
     #plot_execution_time_vec()
     plot_theta_csv()
+
