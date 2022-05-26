@@ -3,14 +3,21 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.stats as stats
 from filterpy.monte_carlo import systematic_resample, residual_resample, stratified_resample, multinomial_resample
-from scipy.signal import butter, sosfilt
 
 
 class ParticleFilter():
     """
         Creates a particle filter object
+
+        Args:
+            t_obs (float): Total observation time
+            n_rx_channel (int): Number of receiver channels
+            n_particles (int): Number of particles to use in the filter
+            region (int): Size of the region in m^2/2
+
+        Returns:
+            no value
     """
 
     def __init__(self, t_obs: float, n_rx_channels: int, n_particles=100, region=2000):
@@ -65,6 +72,12 @@ class ParticleFilter():
     def init_particles_near_target(self, target_pos):
         """
             Initialize the particles to be near the target
+
+            Args:
+                target_pos (np.ndarray): Target position with location and velocity
+
+            Returns:
+                no value
         """
         particle_pos_x = np.random.normal(loc=target_pos[0], scale=100, size=(self.n_particles,1))
         particle_pos_y = np.random.normal(loc=target_pos[1], scale=100, size=(self.n_particles,1))
@@ -89,6 +102,12 @@ class ParticleFilter():
     def init_weights(self):
         """
             Initialize weights for the associated particles
+
+            Args:
+                no value
+
+            Returns:
+                no value
         """
         # Initialize weights
         w_value = 1 / self.n_particles
@@ -100,6 +119,12 @@ class ParticleFilter():
     def predict_particle(self, particle):
         """
             Update particle parameters for the k'th observation
+
+            Args:
+                particle (int): particle index
+
+            Returns:
+                no value
         """
 
         # Update positions
@@ -117,6 +142,12 @@ class ParticleFilter():
     def predict_particle_vectorized(self):
         """
             Update particle parameters for the k'th observation
+
+            Args:
+                no value
+
+            Returns:
+                no value
         """
 
         # Update positions

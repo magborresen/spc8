@@ -11,6 +11,18 @@ class Simulator:
     """
         Simulator class for used for sequential simulation of particle
         filter and radar system observations
+
+        Args:
+            k_obs_tot (int): Total number of observations to
+                             generate target states for
+            radar (object): Radar system object
+            target (object): Target object
+            particle_filter (object): Particle Filter object
+            animate_pf (bool): Whether to animate particle and target updates
+                               in a plot
+
+        Returns:
+            no value
     """
 
     def __init__(self, k_obs_tot, radar, target, particle_filter, animate_pf=False):
@@ -33,6 +45,15 @@ class Simulator:
             self.setup_particle_animation()
 
     def generate_target_states(self):
+        """
+            Generate target states for the k_obs_tot observations
+
+            Args:
+                no value
+
+            Returns:
+                no value
+        """
         self.states = self.target.generate_states(self.k_obs_tot, method="random")
 
     def target_estimate(self, k_obs, resampling="systemic"):
@@ -71,6 +92,12 @@ class Simulator:
     def target_estimate_vectorized(self, k_obs):
         """
             Estimate the target parameters for the k'th observation (vectorized)
+
+            Args:
+                no value
+
+            Returns:
+                no value
         """
         self.target_state = self.states[k_obs]
 
@@ -104,6 +131,12 @@ class Simulator:
     def setup_particle_animation(self):
         """
             Setup the animation scatter plot of particle positions
+
+            Args:
+                no value
+
+            Returns:
+                no value
         """
         x = np.append(self.target_state[0], self.particle_filter.theta_est[:,0])
         y = np.append(self.target_state[1], self.particle_filter.theta_est[:,1])
@@ -126,6 +159,12 @@ class Simulator:
     def update_particle_animation(self):
         """
             Update the particle positions in animation
+
+            Args:
+                no value
+
+            Returns
+                no value
         """
         pos = np.vstack((np.expand_dims(self.target_state[:2],axis=0),
                          self.particle_filter.theta_est[:, :2]))

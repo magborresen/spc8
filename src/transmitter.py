@@ -70,6 +70,14 @@ class Transmitter:
     def plot_tx(self, t_vec, tx_sig, f_sample):
         """
             Plot the transmitted signals
+
+            Args:
+                t_vec (np.ndarray): Time vector
+                tx_sig (np.ndarray): Transmitted signal
+                f_sample (float): Receiver sample rate
+
+            Returns:
+                no value
         """
         fig, axs = plt.subplots(self.channels, 2)
         for idx, sig in enumerate(tx_sig):

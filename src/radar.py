@@ -14,7 +14,12 @@ class Radar:
         Radar system class
 
         Args:
-            no value
+            transmitter (object): Transmitter object
+            receiver (object): Receiver object
+            mp_method (string): Multiplexing method for rx/tx
+            region (int): Size of the region in m^2/2
+            oversample (int): Oversampling factor, used for plotting
+
         Returns:
             no value
     """
@@ -229,7 +234,6 @@ class Radar:
             Args:
                 theta (np.ndarray): Target position
                 target_rcs (float): Radar-cross-section
-                rho (float): Effectivity of aperture (0 < rho <= 1)
 
             Returns:
                 alpha (np.ndarray): Receiver attenuations
@@ -258,11 +262,11 @@ class Radar:
 
             Args:
                 sig (np.ndarray): The original signal
-                sig_var (np.ndarray): Variance of the part of the
-                                      observation containing the signal(s).
+                alpha (np.ndarray): Complex gain of the signal
 
             Returns:
-                sig_noise (np.ndarray): Signal with noise added.
+                sig_noise (np.ndarray): Signal with noise added
+                noise (float): Variance of the noise
         """
         signals_noise = []
         for signal in signals:
@@ -442,7 +446,10 @@ class Radar:
                 sig_fft = np.fft.fft(cube[idx])
                 vel_cube[idx] = sig_fft
             vel_est[n_ch] = vel_cube.T
-        velocity_table = 2*np.pi*np.concatenate((np.arange(0, (self.transmitter.chirps*self.m_channels)//2), np.arange(-(self.transmitter.chirps*self.m_channels)//2, 0)[::-1]))*self.transmitter.bandwidth/(self.transmitter.chirps*self.m_channels)
+        velocity_table = 2*np.pi*(np.concatenate((np.arange(0, (self.transmitter.chirps*self.m_channels)//2),
+                                                 np.arange(-(self.transmitter.chirps*self.m_channels)//2, 0)[::-1]))
+                                                 *self.transmitter.bandwidth/
+                                                 (self.transmitter.chirps*self.m_channels))
         velocity_table = velocity_table * self.light_speed / (4*np.pi*self.transmitter.f_carrier)
         plt.imshow(np.abs(vel_est[0]))
         plt.imshow(np.abs(vel_est[1]))
@@ -477,7 +484,7 @@ class Radar:
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
         # Create the received signal
-        s_sig, rx_sig = self.receiver.rx_tdm(tau_vec,
+        _, rx_sig = self.receiver.rx_tdm(tau_vec,
                                              tx_sig,
                                              self.transmitter.f_carrier,
                                              alpha,
@@ -489,8 +496,9 @@ class Radar:
 
         # Mix signals
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
+
         # Range-FFT
-        range_cube, range_est = self.range_fft_cube(mix_vec)
+        _, range_est = self.range_fft_cube(mix_vec)
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
@@ -509,7 +517,10 @@ class Radar:
 
         return range_est, alpha
 
-    def print_estimates(self, range_true, range_est, vel_true, vel_est):
+    def _print_estimates(self, range_true, range_est, vel_true, vel_est):
+        """
+            Debugging function
+        """
         print('v_max =', self.wavelength / (4*self.transmitter.t_chirp))
         print('v_res =', self.wavelength / (4*(self.t_obs - self.transmitter.t_chirp)))
         print(f'\nTarget velocity = {vel_true}')

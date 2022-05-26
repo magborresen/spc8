@@ -28,9 +28,9 @@ class Target():
             Args:
                 k_tot (int): Observations
                 method (str): Acceleration pattern, which can be...
-                    'spiral': A spiralling motion from region center
-                    'linear': A linear motion, going towards origin
-                    None: A linear motion, going away from origin
+                              'spiral': A spiralling motion from region center
+                              'linear': A linear motion, going towards origin
+                              None: A linear motion, going away from origin
 
             Returns:
                 acc (list): Acceleration for each observation
@@ -51,11 +51,11 @@ class Target():
                 if start > self.region/3:
                     vel_y *= (-1)**np.random.randint(1,3)
                     start = min(start, corner_cut*start)
-                
+
                 self.init_state = np.array([[0],
                                             [start],
                                             [vel_x], [vel_y]])
-                
+
             elif direction == 1: # From the right
                 vel_x = np.sqrt(np.random.uniform(0, self.velocity**2))
                 vel_y = np.sqrt(self.velocity**2 - vel_x**2)
@@ -63,12 +63,12 @@ class Target():
                 if start > self.region/2:
                     vel_y *= (-1)**np.random.randint(1,3)
                     start = min(start, corner_cut*start)
-                
+
                 self.init_state = np.array([[self.region],
                                             [start],
                                             [-vel_x], [vel_y]])
-                
-            else: # From the top 
+
+            else: # From the top
                 vel_y = np.sqrt(np.random.uniform(0.6 * self.velocity**2, self.velocity**2))
                 vel_x = np.sqrt(self.velocity**2 - vel_y**2)
                 self.init_state = np.array([[np.random.uniform(0.2 * self.region, corner_cut * self.region)],
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     target.plot_region(states)
 
     target.get_velocities(states)
-    
+
     # itr = 3000
     # _, ax = plt.subplots()
     # ax.set_aspect(1)

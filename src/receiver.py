@@ -9,7 +9,8 @@ class Receiver:
         Radar receiver class
 
         Args:
-            no value
+            channels (int): Value for how many receivers should be generated
+            f_sample (float): Sample frequency of the system
 
         Returns:
             no value
@@ -30,7 +31,8 @@ class Receiver:
             Receiver a time-division multiplexed signal
 
             Args:
-                tau (np.ndarray): Collection of time delays between transmitter -> target -> receiver
+                tau (np.ndarray): Collection of time delays
+                                  between transmitter -> target -> receiver
                 tx_sig (np.ndarray): Collection of delayed transmitted signals
                 f_carrier (float): Carrier frequency
                 alpha (np.ndarray or float): Complex gain of the received signal
