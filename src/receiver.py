@@ -3,7 +3,6 @@
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 class Receiver:
     """
@@ -16,13 +15,17 @@ class Receiver:
             no value
     """
 
-    def __init__(self, channels=5, f_sample=80e6, snr=None):
+    def __init__(self, channels=5, f_sample=80e6):
         self.f_sample = f_sample
-        self.snr = snr
         self.channels = channels
-        self.sigma_noise = snr
+        self.sigma_noise = 0
+        self.noise_figure = 12 # in dB
+        self.temp = 293.15 # in Kelvin (=> 20 celcius)
+        self.input_noise = -89.2 # At room temperature
 
-    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray, f_carrier: float, alpha=1, add_noise=True) -> np.ndarray:
+    def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray,
+               f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray,
+               t_chirp) -> np.ndarray:
         """
             Receiver a time-division multiplexed signal
 
@@ -40,59 +43,40 @@ class Receiver:
         x_k = []
         s_k = []
         tau_idx = 0
-        
+
         for n_ch in range(self.channels):
             # Set signals to 0
             sig_x = 0
             sig_s = 0
-            
+            tau_id_sample = 0
             for m_ch in range(tx_sig.shape[0]):
+                # Find which tau to use for the signal offset
+                tau_sample = int(self.f_sample * t_chirp * tau_id_sample) - 1
+
+                # Find the signal offset in samples
+                offset = tau[tau_idx][tau_sample]
+
+                # Get delay in number of samples
+                delay = round(offset / t_vec[1])
+                # Delay signal by desired number of samples (pad with 0)
+                tx_sig_offset = np.r_[np.full(delay, 0), tx_sig[m_ch][:-delay]]
+
                 # Calculate clean signal for antenna pair
-                sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig[m_ch]
+                sig = np.exp(2j*np.pi*f_carrier*tau[tau_idx]) * tx_sig_offset
                 # Iterate signal with gain
-                sig_x += alpha * sig
+                sig_x += sig * alpha[n_ch]
                 # Iterate signal without gain
                 sig_s += sig
                 # Iterate tau counter
-                tau_idx += 1  
-            
+                tau_id_sample += 1
+                tau_idx += 1
+
             x_k.append(sig_x)
-            s_k.append(sig_s)  
-        
+            s_k.append(sig_s)
+
         x_k = np.array(x_k)
         s_k = np.array(s_k)
 
-        # Get observation, add complex noise to signal
-        if self.snr and add_noise:
-            y_k = x_k + np.array(self.get_noise(x_k))
-        else:pyth
-            y_k = x_k
+        y_k = x_k
 
         return (s_k, y_k)
-
-    def get_noise(self, signals):
-        """
-            Add noise to received signals
-
-            Args:
-                signals (np.ndarray): Received signals
-
-            Returns:
-                signals (np.ndarray): Received signals with added noise
-        """
-        noise = []
-        for signal in signals:
-            samples = len(signal)
-            SNR = 10.0**(self.snr/10.0)
-
-            sigma_signal = np.var(signal)
-            sigma_complex_noise = sigma_signal/SNR
-            self.sigma_noise = sigma_complex_noise
-            sigma_real_noise = np.sqrt(sigma_complex_noise/2)
-
-            v = np.random.normal(0, 1, size=(2, samples))
-            W = sigma_real_noise * v[0,:] + 1j * sigma_real_noise * v[1,:]
-
-            noise.append(W)
-
-        return noise

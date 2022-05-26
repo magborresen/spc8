@@ -133,5 +133,8 @@ dev/
 /dev/
 /plots
 plots/
-/dev
-dev/
+/src/plots
+src/plots/
+src/plots
+sim_results/
+/sim_results
