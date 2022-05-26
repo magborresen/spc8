@@ -138,3 +138,7 @@ src/plots/
 src/plots
 sim_results/
 /sim_results
+
+# vscode
+.vscode/
+/.vscode
