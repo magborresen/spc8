@@ -168,7 +168,6 @@ class Radar:
 
         return true_vel
 
-    @profile
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to
@@ -257,7 +256,6 @@ class Radar:
 
         return np.array(alpha)
 
-    @profile
     def add_awgn(self, signals, alpha):
         """
             Calculate and add circular symmetric white gaussian noise to the signal
@@ -270,35 +268,32 @@ class Radar:
                 sig_noise (np.ndarray): Signal with noise added
                 noise (float): Variance of the noise
         """
-        signals_noise = []
-        for signal in signals:
-            sig_noise = np.copy(signal)
-            # Find where the signal is non zero
-            sig_idx = np.abs(signal) > 0
-            # Index the original signal
-            sig_only = signal[sig_idx]
-            # Find the variance (power of the signal)
-            sig_var = np.var(sig_only)
 
-            # Determine spectral height of noise
-            t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
-            fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
+        sig_noise = np.copy(signals)
+        sig_noise_idx = np.copy(signals)
+        # Find where the signal is non zero
+        sig_noise_idx[sig_noise_idx == 0] = np.nan
+        # Find the variance (power of the signal)
+        sig_var = np.nanvar(sig_noise_idx, axis=1)
 
-            # # Calculate linear SNR
-            # lin_snr = 10.0**(self.snr / 10.0)
-            lin_snr = np.mean(alpha * fraq)
-            self.snr = 10*np.log10(lin_snr)
+        # Determine spectral height of noise
+        t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
+        fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
 
-            # Calculate the variance of the noise
-            n_var = sig_var / lin_snr
-            # Calculate the noise
-            noise = np.sqrt(n_var / 2) * (np.random.normal(size=(sig_only.shape)) +
-                                        1j*np.random.normal(size=(sig_only.shape)))
+        # # Calculate linear SNR
+        # lin_snr = 10.0**(self.snr / 10.0)
+        lin_snr = np.mean(alpha * fraq)
+        self.snr = 10*np.log10(lin_snr)
 
-            sig_noise[sig_idx] = signal[sig_idx] + noise
-            signals_noise.append(sig_noise)
+        # Calculate the variance of the noise
+        n_var = sig_var / lin_snr
+        # Calculate the noise
+        noise = np.sqrt(n_var / 2)[:,np.newaxis] * (np.random.normal(size=(sig_noise.shape)) +
+                                    1j*np.random.normal(size=(sig_noise.shape)))
 
-        return np.array(signals_noise), np.var(noise)
+        sig_noise = signals + noise
+
+        return np.array(sig_noise), np.var(noise)
 
 
     def create_time_vector(self):
@@ -459,7 +454,6 @@ class Radar:
         plt.yticks(range(velocity_table.size), velocity_table)
         plt.gca().set_aspect('equal')
 
-    @profile
     def observation(self, k_obs, theta, alpha=None, add_noise=False,
                     plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
                     plot_range_fft=False):
