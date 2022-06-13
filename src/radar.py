@@ -168,6 +168,7 @@ class Radar:
 
         return true_vel
 
+    @profile
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to
@@ -256,6 +257,7 @@ class Radar:
 
         return np.array(alpha)
 
+    @profile
     def add_awgn(self, signals, alpha):
         """
             Calculate and add circular symmetric white gaussian noise to the signal
@@ -457,6 +459,7 @@ class Radar:
         plt.yticks(range(velocity_table.size), velocity_table)
         plt.gca().set_aspect('equal')
 
+    @profile
     def observation(self, k_obs, theta, alpha=None, add_noise=False,
                     plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
                     plot_range_fft=False):
@@ -613,14 +616,10 @@ class Radar:
 
 if __name__ == '__main__':
     k = 100
-    tx = Transmitter(channels=2, chirps=2)
-    rx = Receiver(channels=2)
+    tx = Transmitter(channels=2, chirps=10)
+    rx = Receiver(channels=10)
 
     radar = Radar(tx, rx, "tdm", 2000)
-    target = Target(radar.t_obs + radar.k_space, velocity=-12)
-    target_states = target.generate_states(k, 'linearaway')
-    # radar.observation(20, target_states[20],
-    #                   add_noise=True, plot_tx=False, plot_rx=False,
-    #                   plot_mixed=False, plot_range_fft=False)
-    # radar.plot_region(target_states)
-    radar.plot_antennas()
+    target = Target(radar.t_obs + radar.k_space)
+    target_states = target.generate_states(k, 'random')
+    radar.observation(0, target_states[0], add_noise=True)

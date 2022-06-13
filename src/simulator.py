@@ -56,6 +56,7 @@ class Simulator:
         """
         self.states = self.target.generate_states(self.k_obs_tot, method="random")
 
+    #@profile
     def target_estimate(self, k_obs, resampling="systemic"):
         """
             Estimate the target parameters for the k'th observation
@@ -71,8 +72,7 @@ class Simulator:
             particle_dist= self.radar.get_true_dist(self.particle_filter.theta_est[particle])
 
             # Get the observation likelihood given each particle observation
-            self.particle_filter.likelihoods[particle] = self.particle_filter.get_likelihood(target_range,
-                                                                                             particle_dist)
+            self.particle_filter.likelihoods[particle] = self.particle_filter.get_likelihood(target_range, particle_dist)
 
         # Update the weights for all particles
         self.particle_filter.update_weights()
@@ -89,6 +89,7 @@ class Simulator:
 
         self.particle_filter.save_theta_hist()
 
+    @profile
     def target_estimate_vectorized(self, k_obs):
         """
             Estimate the target parameters for the k'th observation (vectorized)
@@ -110,8 +111,7 @@ class Simulator:
         particle_dist = self.radar.get_true_dist_vectorized(self.particle_filter.theta_est)
 
         # Get the observation likelihood given each particle observation
-        self.particle_filter.likelihoods = self.particle_filter.get_likelihood(target_range,
-                                                                               particle_dist)
+        self.particle_filter.likelihoods = self.particle_filter.get_likelihood(target_range, particle_dist)
 
         # Update the weights for all particles
         self.particle_filter.update_weights()
@@ -174,7 +174,7 @@ class Simulator:
 
 if __name__ == '__main__':
     region_size = 2000
-    k = 100
+    k = 1
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=10)
 
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     target = Target(t_obs_tot)
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
 
-    sim = Simulator(k, radar, target, pf, animate_pf=True)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
     for i in range(k):
         sim.target_estimate_vectorized(i)
-    plt.waitforbuttonpress()
+    #plt.waitforbuttonpress()

@@ -24,6 +24,7 @@ class Receiver:
         self.temp = 293.15 # in Kelvin (=> 20 celcius)
         self.input_noise = -89.2 # At room temperature
 
+    @profile
     def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray,
                f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray,
                t_chirp) -> np.ndarray:

@@ -142,3 +142,5 @@ sim_results/
 # vscode
 .vscode/
 /.vscode
+
+*.lprof
