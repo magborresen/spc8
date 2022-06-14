@@ -24,6 +24,7 @@ class Receiver:
         self.temp = 293.15 # in Kelvin (=> 20 celcius)
         self.input_noise = -89.2 # At room temperature
 
+    # @profile
     def rx_tdm(self, tau: np.ndarray, tx_sig: np.ndarray,
                f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray,
                t_chirp) -> np.ndarray:
@@ -51,6 +52,7 @@ class Receiver:
             sig_x = 0
             sig_s = 0
             tau_id_sample = 0
+
             for m_ch in range(tx_sig.shape[0]):
                 # Find which tau to use for the signal offset
                 tau_sample = int(self.f_sample * t_chirp * tau_id_sample) - 1
@@ -60,6 +62,7 @@ class Receiver:
 
                 # Get delay in number of samples
                 delay = round(offset / t_vec[1])
+                
                 # Delay signal by desired number of samples (pad with 0)
                 tx_sig_offset = np.r_[np.full(delay, 0), tx_sig[m_ch][:-delay]]
 
@@ -82,3 +85,43 @@ class Receiver:
         y_k = x_k
 
         return (s_k, y_k)
+
+    # @profile
+    def rx_tdm_optimized(self, tau: np.ndarray, tx_sig: np.ndarray,
+               f_carrier: float, alpha: np.ndarray, t_vec: np.ndarray,
+               t_chirp) -> np.ndarray:
+        """
+            Receiver a time-division multiplexed signal
+
+            Args:
+                tau (np.ndarray): Collection of time delays
+                                  between transmitter -> target -> receiver
+                tx_sig (np.ndarray): Collection of delayed transmitted signals
+                f_carrier (float): Carrier frequency
+                alpha (np.ndarray or float): Complex gain of the received signal
+
+            Returns:
+                y_k (np.ndarray): Collection of received signals for the oberservation
+        """
+
+        x_k = np.zeros((self.channels, tx_sig.shape[1]), dtype=np.complex128)
+        tau_idx = 0
+
+        for n_ch in range(self.channels):
+            for m_ch in range(tx_sig.shape[0]):
+                
+                # Find which tau to use for the signal offset
+                tau_sample = int(self.f_sample * t_chirp * m_ch) 
+
+                # Delay signal by desired number of samples (pad with 0)
+                offset = tau[tau_idx][tau_sample]
+                delay = round(offset / t_vec[1])
+                tx_sig_offset = np.r_[np.full(delay, 0), tx_sig[m_ch][:-delay]]
+
+                # Calculate clean signal for antenna pair
+                iota = tx_sig_offset != 0
+                x_k[n_ch,iota] += np.exp(2j*np.pi*f_carrier*tau[tau_idx,iota]) * tx_sig_offset[iota] * alpha[n_ch]
+
+                tau_idx += 1
+
+        return x_k
