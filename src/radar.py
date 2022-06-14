@@ -207,13 +207,13 @@ class Radar:
         d_tx = np.zeros((self.m_channels, self.samples_per_obs))
         for tx_m in range(self.m_channels):
             d_tx[tx_m,:] = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
-        
+
         for rx_n in range(self.n_channels):
             d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
-            
+
             for tx_m in range(self.m_channels):
-                
-                tau[idx,:] = 1 / self.light_speed * (d_tx[tx_m] + d_rx) 
+
+                tau[idx,:] = 1 / self.light_speed * (d_tx[tx_m] + d_rx)
                 idx += 1
 
         return tau
@@ -276,7 +276,7 @@ class Radar:
             alpha.append(attenuation)
 
         return np.array(alpha)
-    
+
     # @profile
     def add_awgn(self, signals, alpha):
         """
@@ -332,14 +332,8 @@ class Radar:
                 noise (float): Variance of the noise
         """
 
-        # sig_noise = np.copy(signals)
-        # sig_noise_idx = np.copy(signals)
-        # Find where the signal is non zero
-        # sig_noise_idx[sig_noise_idx == 0] = np.nan
-        # Find the variance (power of the signal)
-        # sig_var = np.nanvar(sig_noise_idx, axis=1)
-        
-        sig_var = np.var(signals[signals != 0], axis=1)
+        # Find the variance of the signal without offsets
+        sig_var = np.var(np.ma.masked_values(signals, 0.+0.j), axis=1, dtype=np.complex128)
 
         # Determine spectral height of noise
         t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
@@ -543,7 +537,7 @@ class Radar:
         # Find the time delay between the tx -> target -> rx
         # tau_vec = self.time_delay(theta, self.t_vec)
         tau_vec = self.time_delay_optimized(theta, self.t_vec)
-        
+
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
