@@ -200,6 +200,17 @@ class Radar:
 
     # @profile
     def time_delay_optimized(self, theta: np.ndarray, t_vec: np.ndarray) -> np.ndarray:
+        """
+            Find time delays from receiver each n, to the target, and back to
+            every transmitter. Note that output dimension will be M*N
+
+            Args:
+                theta (np.ndarray): Target state at observation k
+                t_vec  (np.ndarray): Times for which to calculate the delays
+
+            Returns:
+                tau (np.ndarray): Collection of time delay signals
+        """
 
         traj = self.trajectory(t_vec, theta)
         tau = np.zeros((self.n_channels * self.m_channels, self.samples_per_obs))
@@ -467,19 +478,45 @@ class Radar:
                 sig_fil = sosfilt(sos, sig)
                 # Get range-FFT of mixed signal
                 sig_fft = np.fft.fft(sig_fil)
-                N = len(sig_fft)
-                T = N/(self.receiver.f_sample * self.oversample)
-                n = np.arange(N)
-                freq = n/T
                 # Convert frequency to range
-                sig_range = (freq * self.light_speed /
-                            (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
                 fft_vec.append(sig_fft)
                 range_n += sig_range[np.argmax(sig_fft)]
             range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
             range_cube.append(fft_vec)
 
         return np.array(range_cube), np.array(range_est)
+
+
+    def range_fft_cube_new(self, mix_vec):
+        """
+            This is a complex signal mixer, that seperates individual chirps
+            in the received signals - and mixes them with the respective
+            transmitted chirp. Since there will be a total of m_channels * N_c
+            chirps, so will the output. Output is indexed by n_channels and
+            chirp_index.
+
+            Args:
+                mix_vec (np.ndarray): Collection of mixed signals
+
+            Returns:
+                range_cube (np.ndarray): Three-dimensional range cube
+        """
+        # Prepare low-pass filter for mixed signals
+        nyq = self.receiver.f_sample * self.oversample
+        sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
+        T = self.samples_per_obs/(self.receiver.f_sample * self.oversample)
+        n = np.arange(self.samples_per_obs)
+        freq = n/T
+        sig_range = (freq * self.light_speed /
+                    (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
+
+        sig_fil = sosfilt(sos, mix_vec, axis=1)
+        # Get range-FFT of mixed signal
+        sig_fft = np.fft.fft(sig_fil, axis=1)
+        # Convert frequency to range
+        range_avg = np.mean([sig_range[np.argmax(sig_fft[idx])] for idx, _ in enumerate(sig_fft)])
+        print(range_avg)
+        return sig_fft, range_avg
 
     def velocity_fft_cube(self, range_cube):
         """
@@ -543,11 +580,11 @@ class Radar:
 
         # Create the received signal
         _, rx_sig = self.receiver.rx_tdm(tau_vec,
-                                             tx_sig,
-                                             self.transmitter.f_carrier,
-                                             alpha,
-                                             self.t_vec,
-                                             self.transmitter.t_chirp)
+                                         tx_sig,
+                                         self.transmitter.f_carrier,
+                                         alpha,
+                                         self.t_vec,
+                                         self.transmitter.t_chirp)
 
         if add_noise:
             # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
@@ -557,7 +594,7 @@ class Radar:
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
 
         # Range-FFT
-        _, range_est = self.range_fft_cube(mix_vec)
+        _, range_est = self.range_fft_cube_new(mix_vec)
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
