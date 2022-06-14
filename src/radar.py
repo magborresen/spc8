@@ -504,12 +504,17 @@ class Radar:
         # Prepare low-pass filter for mixed signals
         nyq = self.receiver.f_sample * self.oversample
         sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
+        # Get time step
         T = self.samples_per_obs/(self.receiver.f_sample * self.oversample)
+        # time step sample indexes
         n = np.arange(self.samples_per_obs)
+        # Frequency axis
         freq = n/T
+        # Range axis
         sig_range = (freq * self.light_speed /
                     (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
 
+        # Apply butter filter to the mixed signals
         sig_fil = sosfilt(sos, mix_vec, axis=1)
         # Get range-FFT of mixed signal
         sig_fft = np.fft.fft(sig_fil, axis=1)
@@ -599,6 +604,7 @@ class Radar:
 
         # Range-FFT
         _, range_est = self.range_fft_cube_new(mix_vec)
+        print(self.get_true_dist(theta))
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
