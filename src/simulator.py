@@ -89,7 +89,7 @@ class Simulator:
 
         self.particle_filter.save_theta_hist()
 
-    @profile
+    #@profile
     def target_estimate_vectorized(self, k_obs):
         """
             Estimate the target parameters for the k'th observation (vectorized)

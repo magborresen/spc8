@@ -182,6 +182,7 @@ def plot_rx_signals():
     plt.xlabel("Time [µs]")
     fig.suptitle('RX signals for an observation')
     fig.tight_layout()
+    plt.show()
     plt.savefig('plots/rx_plot_2_ch.pdf', dpi=200)
 
 def plot_mixed_signals():
@@ -285,7 +286,7 @@ def plot_target(itr = 10):
     plt.ylabel('$x$ [m]')
     plt.xlabel('$y$ [m]')
     plt.savefig('plots/target_examples.pdf', dpi=200)
-    
+
     itr = 3000
     _, ax = plt.subplots()
     ax.set_aspect(1)
@@ -598,9 +599,9 @@ def plot_theta_csv():
 
 
 if __name__ == '__main__':
-    plot_target()
+    #plot_target()
     # plot_tx_signals()
-    # plot_rx_signals()
+    plot_rx_signals()
     # plot_mixed_signals()
 
     # plot_alpha([0.5, 0.75, 1])
@@ -613,5 +614,4 @@ if __name__ == '__main__':
     #plot_execution_time()
     #plot_resampling()
     #plot_execution_time_vec()
-    plot_theta_csv()
-
+    #plot_theta_csv()

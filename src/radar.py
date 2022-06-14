@@ -504,6 +504,7 @@ class Radar:
         if plot_tx:
             self.plot_sig(tx_sig, f"TX signals for observation {k_obs}")
         if plot_rx:
+            print(rx_sig.shape)
             self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
         if plot_tau:
             self.plot_tau(tau_vec)
