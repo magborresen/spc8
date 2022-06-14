@@ -535,14 +535,14 @@ class Radar:
             alpha = self.get_attenuation(theta)
 
         # Find the time delay between the tx -> target -> rx
-        # tau_vec = self.time_delay(theta, self.t_vec)
+        # tau_vec_og = self.time_delay(theta, self.t_vec)
         tau_vec = self.time_delay_optimized(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
         # Create the received signal
-        # _, rx_sig = self.receiver.rx_tdm(tau_vec,
+        # _, rx_sig_og = self.receiver.rx_tdm(tau_vec,
         #                                 tx_sig,
         #                                 self.transmitter.f_carrier,
         #                                 alpha,
@@ -552,8 +552,6 @@ class Radar:
                                                 self.transmitter.f_carrier,
                                                 alpha, self.t_vec,
                                                 self.transmitter.t_chirp)
-
-        print(rx_sig.dtype)
 
         if add_noise:
             # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)

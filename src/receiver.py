@@ -104,32 +104,24 @@ class Receiver:
                 y_k (np.ndarray): Collection of received signals for the oberservation
         """
 
-        
-        # Get received signals
         x_k = np.zeros((self.channels, tx_sig.shape[1]), dtype=np.complex128)
         tau_idx = 0
+
         for n_ch in range(self.channels):
-            # Set signals to 0
-            tau_id_sample = 0
             for m_ch in range(tx_sig.shape[0]):
-                # Find which tau to use for the signal offset
-                tau_sample = int(self.f_sample * t_chirp * tau_id_sample) 
-
-                # Find the signal offset in samples
-                offset = tau[tau_idx][tau_sample]
-
-                # Get delay in number of samples
-                delay = round(offset / t_vec[1])
                 
+                # Find which tau to use for the signal offset
+                tau_sample = int(self.f_sample * t_chirp * m_ch) 
+
                 # Delay signal by desired number of samples (pad with 0)
+                offset = tau[tau_idx][tau_sample]
+                delay = round(offset / t_vec[1])
                 tx_sig_offset = np.r_[np.full(delay, 0), tx_sig[m_ch][:-delay]]
-                iota = tx_sig_offset != 0
 
                 # Calculate clean signal for antenna pair
+                iota = tx_sig_offset != 0
                 x_k[n_ch,iota] += np.exp(2j*np.pi*f_carrier*tau[tau_idx,iota]) * tx_sig_offset[iota] * alpha[n_ch]
 
-                # Iterate tau counter
-                tau_id_sample += 1
                 tau_idx += 1
 
         return x_k
