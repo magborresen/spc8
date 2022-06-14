@@ -168,6 +168,7 @@ class Radar:
 
         return true_vel
 
+    # @profile
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to
@@ -196,6 +197,26 @@ class Radar:
                 tau.append(tau_kmn)
 
         return np.array(tau)
+
+    # @profile
+    def time_delay_optimized(self, theta: np.ndarray, t_vec: np.ndarray) -> np.ndarray:
+
+        traj = self.trajectory(t_vec, theta)
+        tau = np.zeros((self.n_channels * self.m_channels, self.samples_per_obs))
+        idx = 0
+        d_tx = np.zeros((self.m_channels, self.samples_per_obs))
+        for tx_m in range(self.m_channels):
+            d_tx[tx_m,:] = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
+        
+        for rx_n in range(self.n_channels):
+            d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
+            
+            for tx_m in range(self.m_channels):
+                
+                tau[idx,:] = 1 / self.light_speed * (d_tx[tx_m] + d_rx) 
+                idx += 1
+
+        return tau
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
@@ -255,8 +276,50 @@ class Radar:
             alpha.append(attenuation)
 
         return np.array(alpha)
-
+    
+    # @profile
     def add_awgn(self, signals, alpha):
+        """
+            Calculate and add circular symmetric white gaussian noise to the signal
+            Args:
+                sig (np.ndarray): The original signal
+                sig_var (np.ndarray): Variance of the part of the
+                                      observation containing the signal(s).
+            Returns:
+                sig_noise (np.ndarray): Signal with noise added.
+        """
+        signals_noise = []
+        for signal in signals:
+            sig_noise = np.copy(signal)
+            # Find where the signal is non zero
+            sig_idx = np.abs(signal) > 0
+            # Index the original signal
+            sig_only = signal[sig_idx]
+            # Find the variance (power of the signal)
+            sig_var = np.var(sig_only)
+
+            # Determine spectral height of noise
+            t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
+            fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
+
+            # # Calculate linear SNR
+            # lin_snr = 10.0**(self.snr / 10.0)
+            lin_snr = np.mean(alpha * fraq)
+            self.snr = 10*np.log10(lin_snr)
+
+            # Calculate the variance of the noise
+            n_var = sig_var / lin_snr
+            # Calculate the noise
+            noise = np.sqrt(n_var / 2) * (np.random.normal(size=(sig_only.shape)) +
+                                        1j*np.random.normal(size=(sig_only.shape)))
+
+            sig_noise[sig_idx] = signal[sig_idx] + noise
+            signals_noise.append(sig_noise)
+
+        return np.array(signals_noise), np.var(noise)
+
+    # @profile
+    def add_awgn_vector(self, signals, alpha):
         """
             Calculate and add circular symmetric white gaussian noise to the signal
 
@@ -269,12 +332,14 @@ class Radar:
                 noise (float): Variance of the noise
         """
 
-        sig_noise = np.copy(signals)
-        sig_noise_idx = np.copy(signals)
+        # sig_noise = np.copy(signals)
+        # sig_noise_idx = np.copy(signals)
         # Find where the signal is non zero
-        sig_noise_idx[sig_noise_idx == 0] = np.nan
+        # sig_noise_idx[sig_noise_idx == 0] = np.nan
         # Find the variance (power of the signal)
-        sig_var = np.nanvar(sig_noise_idx, axis=1)
+        # sig_var = np.nanvar(sig_noise_idx, axis=1)
+        
+        sig_var = np.var(signals[signals != 0], axis=1)
 
         # Determine spectral height of noise
         t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
@@ -288,12 +353,12 @@ class Radar:
         # Calculate the variance of the noise
         n_var = sig_var / lin_snr
         # Calculate the noise
-        noise = np.sqrt(n_var / 2)[:,np.newaxis] * (np.random.normal(size=(sig_noise.shape)) +
-                                    1j*np.random.normal(size=(sig_noise.shape)))
+        noise = np.sqrt(n_var / 2)[:,np.newaxis] * (np.random.normal(size=(signals.shape)) +
+                                    1j*np.random.normal(size=(signals.shape)))
 
         sig_noise = signals + noise
 
-        return np.array(sig_noise), np.var(noise)
+        return sig_noise, np.var(noise)
 
 
     def create_time_vector(self):
@@ -454,6 +519,7 @@ class Radar:
         plt.yticks(range(velocity_table.size), velocity_table)
         plt.gca().set_aspect('equal')
 
+    # @profile
     def observation(self, k_obs, theta, alpha=None, add_noise=False,
                     plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
                     plot_range_fft=False):
@@ -475,8 +541,9 @@ class Radar:
             alpha = self.get_attenuation(theta)
 
         # Find the time delay between the tx -> target -> rx
-        tau_vec = self.time_delay(theta, self.t_vec)
-
+        # tau_vec = self.time_delay(theta, self.t_vec)
+        tau_vec = self.time_delay_optimized(theta, self.t_vec)
+        
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
@@ -489,7 +556,8 @@ class Radar:
                                              self.transmitter.t_chirp)
 
         if add_noise:
-            rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
+            # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
+            rx_sig, self.receiver.sigma_noise = self.add_awgn_vector(rx_sig, alpha)
 
         # Mix signals
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
@@ -616,5 +684,5 @@ if __name__ == '__main__':
 
     radar = Radar(tx, rx, "tdm", 2000)
     target = Target(radar.t_obs + radar.k_space)
-    target_states = target.generate_states(k, 'random')
+    target_states = target.generate_states(k, 'raaandom')
     radar.observation(0, target_states[0], add_noise=True)
