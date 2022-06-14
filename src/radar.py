@@ -168,6 +168,7 @@ class Radar:
 
         return true_vel
 
+    # @profile
     def time_delay(self, theta: np.ndarray, t_vec: np.ndarray) -> list:
         """
             Find time delays from receiver each n, to the target, and back to
@@ -196,6 +197,26 @@ class Radar:
                 tau.append(tau_kmn)
 
         return np.array(tau)
+
+    # @profile
+    def time_delay_optimized(self, theta: np.ndarray, t_vec: np.ndarray) -> np.ndarray:
+
+        traj = self.trajectory(t_vec, theta)
+        tau = np.zeros((self.n_channels * self.m_channels, self.samples_per_obs))
+        idx = 0
+        d_tx = np.zeros((self.m_channels, self.samples_per_obs))
+        for tx_m in range(self.m_channels):
+            d_tx[tx_m,:] = np.sqrt((self.tx_pos[0,tx_m] - traj[0].T)**2 + (self.tx_pos[1,tx_m] - traj[1].T)**2)
+        
+        for rx_n in range(self.n_channels):
+            d_rx = np.sqrt((self.rx_pos[0,rx_n] - traj[0].T)**2 + (self.rx_pos[1,rx_n] - traj[1].T)**2)
+            
+            for tx_m in range(self.m_channels):
+                
+                tau[idx,:] = 1 / self.light_speed * (d_tx[tx_m] + d_rx) 
+                idx += 1
+
+        return tau
 
     def trajectory(self, t_vec: np.ndarray, theta: np.ndarray) -> np.ndarray:
         """
@@ -475,7 +496,11 @@ class Radar:
             alpha = self.get_attenuation(theta)
 
         # Find the time delay between the tx -> target -> rx
-        tau_vec = self.time_delay(theta, self.t_vec)
+        # tau_vec = self.time_delay(theta, self.t_vec)
+        tau_vec = self.time_delay_optimized(theta, self.t_vec)
+        
+        # %timeit self.time_delay(theta, self.t_vec)
+        # %timeit self.time_delay_optimized(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
