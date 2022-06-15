@@ -223,4 +223,8 @@ if __name__ == '__main__':
     print('Naive:', t1-t0, 's', 'len', len(states_naive))
     print('Vectorized:', t1-t0, 's', 'len', len(states_vector))
     print('Multiprocessing:', t1-t0, 's', 'len', len(states_multi))
+    
+    print(states_naive)
+    print(states_vector)
+    print(states_multi)
     # plt.waitforbuttonpress()

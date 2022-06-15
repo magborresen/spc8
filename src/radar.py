@@ -342,7 +342,7 @@ class Radar:
                 noise (float): Variance of the noise
         """
 
-        sig_noise = np.zeros(signals.shape)
+        sig_noise = np.zeros(signals.shape, dtype=np.complex128)
         # Find the variance of the signal without offsets
         mask = np.abs(signals) > 0
 
