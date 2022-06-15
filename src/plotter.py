@@ -10,6 +10,7 @@ from transmitter import Transmitter
 from particle_filter import ParticleFilter
 from target import Target
 from simulator import Simulator
+import time
 
 def plot_alpha(rho_list):
     plots_dist = []
@@ -597,11 +598,47 @@ def plot_theta_csv():
     plt.savefig("plots/theta_rmse.pdf")
     plt.show()
 
+def plot_multiprocessing_speedup(k, P_list):
+    region_size = 2000
+    tx = Transmitter(channels=2, chirps=10)
+    rx = Receiver(channels=10)
+    radar = Radar(tx, rx, "tdm", region_size)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    td = []
+    for _, P in enumerate(P_list):
+        pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+        sim = Simulator(k, radar, target, pf, animate_pf=False)
+        print(P)
+        t0 = time.time()
+        sim.target_estimate_multiprocessing(k, P)
+        t1 = time.time()
+        td.append(t1-t0)
+        print(t1-t0)
+    
+    td = np.array(td) / k
+    speedup = td[0]/td
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(8, 5), sharex=True)
+    plt.subplots_adjust(hspace=0.5)
+
+    axs[0].plot(P_list, td)
+    axs[0].set_title(f"Execution time vs. Workers")
+    axs[0].grid()
+    axs[0].set_ylabel('Avgerage time [s]')
+    axs[1].plot(P_list, speedup)
+    axs[1].set_title(f"Speedup vs. Workers")
+    axs[1].grid()
+    axs[1].set_ylabel('Speed up')
+    
+    plt.xlabel("Amount of workers")
+    fig.suptitle(f'Particle Filter multi-processing ({k} observations per average)')
+    fig.tight_layout()
+    plt.savefig('plots/multiprocessing_speedup.pdf', dpi=200)
 
 if __name__ == '__main__':
     #plot_target()
     # plot_tx_signals()
-    plot_rx_signals()
+    # plot_rx_signals()
     # plot_mixed_signals()
 
     # plot_alpha([0.5, 0.75, 1])
@@ -615,3 +652,6 @@ if __name__ == '__main__':
     #plot_resampling()
     #plot_execution_time_vec()
     #plot_theta_csv()
+    
+    # Optimization times
+    plot_multiprocessing_speedup(10, np.arange(1, 8+1))
