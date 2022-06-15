@@ -157,7 +157,7 @@ class ParticleFilter():
                                         self.particle_acc / 2)
 
         # Update velocities
-        self.theta_est[:, 2:] = (self.theta_est[:, :2] +
+        self.theta_est[:, 2:] = (self.theta_est[:, 2:] +
                                         self._t_obs * self.particle_acc)
 
 

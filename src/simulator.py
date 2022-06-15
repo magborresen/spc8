@@ -60,7 +60,14 @@ class Simulator:
     #@profile
     def target_estimate(self, k_obs, resampling="systemic"):
         """
-            Estimate the target parameters for the k'th observation
+            Estimate the target parameters for the k'th observation.
+            Implemented in the naive Python way.
+            
+            Args:
+                k_obs (int): k'th observation to estimate
+                resampling (string): Resampling method
+            Returns:
+                state_est (list): Estimated state
         """
         self.target_state = self.states[k_obs]
         target_range, _ = self.radar.observation(k_obs, self.target_state, add_noise=True)
@@ -71,7 +78,7 @@ class Simulator:
 
             # Find the distance to each particle
             particle_dist= self.radar.get_true_dist(self.particle_filter.theta_est[particle])
-
+            
             # Get the observation likelihood given each particle observation
             self.particle_filter.likelihoods[particle] = self.particle_filter.get_likelihood(target_range, particle_dist)
 
@@ -90,19 +97,18 @@ class Simulator:
 
         self.particle_filter.save_theta_hist()
         
-        # print(k_obs, self.particle_filter.get_estimated_state())
         return self.particle_filter.get_estimated_state()
 
     # @profile
     def target_estimate_vectorized(self, k_obs):
         """
-            Estimate the target parameters for the k'th observation (vectorized)
-
+            Estimate the target parameters for the k'th observation.
+            Implemented in a vectorized manner using Numpy.
+            
             Args:
-                no value
-
+                k_obs (int): k'th observation to estimate
             Returns:
-                no value
+                state_est (list): Estimated state
         """
         self.target_state = self.states[k_obs]
 
@@ -131,18 +137,26 @@ class Simulator:
             self.particle_ax.set_title(f"{self.particle_filter.n_particles} particles; Observation {k_obs}")
 
         self.particle_filter.save_theta_hist()
-        
-        # print(k_obs, self.particle_filter.get_estimated_state())
+
         return self.particle_filter.get_estimated_state()
 
-    def target_estimate_multiprocessing(self, k_obs_tot):
-        
-        with Pool(processes=8) as pool:
+    def target_estimate_multiprocessing(self, k_obs_tot, P=8):
+        """
+            Estimate the target parameters for the k'th observation, looping
+            through k_obs_tot. Implemented as a multi-processing implementation.
+            
+            Args:
+                k_obs (int): k'th observation to estimate
+                P (int): Amount of workers
+            Returns:
+                all_state_est (list): List of all estimated states
+        """
+        with Pool(processes=P) as pool:
             result = pool.map_async(self.target_estimate_vectorized, np.arange(k_obs_tot))
             pool.close()
             pool.join()
-            output = result.get()
-        return output
+            all_state_est = result.get()
+        return all_state_est
 
     def setup_particle_animation(self):
         """
@@ -189,43 +203,54 @@ class Simulator:
         plt.pause(0.1)
 
 def test_functions(k, tx, rx, radar, target):
+    """
+        This functions times the different implementations of the function
+        target_states in Simulator class.
+    
+        Args:
+            no value
+    
+        Returns
+            no value
+
+    """
     print('Observations:', k)
     states = target.generate_states(k, method="random")
 
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
-    sim.states = states
     states_naive = []
     t0 = time.time()
     for i in range(k):
         states_naive.append(sim.target_estimate(i))
     t1 = time.time()
-    print('\nNaive:', t1-t0, 's')
-    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive)-np.array(sim.states)))))
+    print('\nNaive:', 'avg', (t1-t0)/k, 's')
+    print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive[:2])-np.array(sim.states[:2])))))
+    print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive[2:])-np.array(sim.states[2:])))))
 
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
-    sim.states = states
     states_vector = []
     t0 = time.time()
     for i in range(k):
         states_vector.append(sim.target_estimate_vectorized(i))
     t1 = time.time()
-    print('\nVectorized:', t1-t0, 's')
-    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector)-np.array(sim.states)))))
+    print('\nVectorized:', 'avg', (t1-t0)/k, 's')
+    print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector[:2])-np.array(sim.states[:2])))))
+    print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector[2:])-np.array(sim.states[2:])))))
 
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
-    sim.states = states
     t0 = time.time()
     states_multi = sim.target_estimate_multiprocessing(k)
     t1 = time.time()
-    print('\nMultiprocessing:', t1-t0, 's')
-    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi)-np.array(sim.states)))))
+    print('\nMultiprocessing:', 'avg', (t1-t0)/k, 's')
+    print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi[:2])-np.array(sim.states[:2])))))
+    print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi[2:])-np.array(sim.states[2:])))))
 
 if __name__ == '__main__':
     region_size = 2000
-    k = 5
+    k = 10
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=10)
     radar = Radar(tx, rx, "tdm", region_size)
