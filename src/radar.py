@@ -468,6 +468,7 @@ class Radar:
                     (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
         range_est = []
         range_cube = []
+        # print(mix_vec.shape)
         for n_ch in range(self.n_channels):
             range_n = 0
             fft_vec = []
@@ -478,12 +479,19 @@ class Radar:
                 sig_fil = sosfilt(sos, sig)
                 # Get range-FFT of mixed signal
                 sig_fft = np.fft.fft(sig_fil)
+                N = len(sig_fft)
+                T = N/(self.receiver.f_sample * self.oversample)
+                n = np.arange(N)
+                freq = n/T
                 # Convert frequency to range
+                sig_range = (freq * self.light_speed /
+                            (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
                 fft_vec.append(sig_fft)
                 range_n += sig_range[np.argmax(sig_fft)]
             range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
             range_cube.append(fft_vec)
-
+            
+        print('range_fft_cube', np.mean(range_est))
         return np.array(range_cube), np.array(range_est)
 
 
@@ -501,13 +509,14 @@ class Radar:
             Returns:
                 range_cube (np.ndarray): Three-dimensional range cube
         """
+        print(self.samples_per_obs, mix_vec.shape)
         # Prepare low-pass filter for mixed signals
         nyq = self.receiver.f_sample * self.oversample
         sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
         # Get time step
-        T = self.samples_per_obs/(self.receiver.f_sample * self.oversample)
+        T = mix_vec.shape[2]/(self.receiver.f_sample * self.oversample)
         # time step sample indexes
-        n = np.arange(self.samples_per_obs)
+        n = np.arange(mix_vec.shape[2])
         # Frequency axis
         freq = n/T
         # Range axis
@@ -518,9 +527,10 @@ class Radar:
         sig_fil = sosfilt(sos, mix_vec, axis=1)
         # Get range-FFT of mixed signal
         sig_fft = np.fft.fft(sig_fil, axis=1)
+        print(sig_fft.shape)
         # Convert frequency to range
         range_avg = np.mean([sig_range[np.argmax(sig_fft[idx])] for idx, _ in enumerate(sig_fft)])
-        print(range_avg)
+        print('range_fft_cube_new', range_avg)
         return sig_fft, range_avg
 
     def velocity_fft_cube(self, range_cube):
@@ -577,14 +587,14 @@ class Radar:
             alpha = self.get_attenuation(theta)
 
         # Find the time delay between the tx -> target -> rx
-        # tau_vec_og = self.time_delay(theta, self.t_vec)
+        # tau_vec = self.time_delay(theta, self.t_vec)
         tau_vec = self.time_delay_optimized(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
 
         # Create the received signal
-        # _, rx_sig_og = self.receiver.rx_tdm(tau_vec,
+        # _, rx_sig = self.receiver.rx_tdm(tau_vec,
         #                                 tx_sig,
         #                                 self.transmitter.f_carrier,
         #                                 alpha,
@@ -604,23 +614,11 @@ class Radar:
 
         # Range-FFT
         _, range_est = self.range_fft_cube_new(mix_vec)
+        # _, range_est = self.range_fft_cube(mix_vec)
         print(self.get_true_dist(theta))
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
-
-        # Plotters
-        if plot_tx:
-            self.plot_sig(tx_sig, f"TX signals for observation {k_obs}")
-        if plot_rx:
-            print(rx_sig.shape)
-            self.plot_sig(rx_sig, f"RX signals for observation {k_obs}")
-        if plot_tau:
-            self.plot_tau(tau_vec)
-        if plot_mixed:
-            self.plot_sig(mix_vec, f"LPF Mixed signals for observation {k_obs}")
-        if plot_range_fft:
-            self.plot_range_fft(mix_vec, f"FFT for LPF mixed signals for observation {k_obs}")
 
         return range_est, alpha
 
