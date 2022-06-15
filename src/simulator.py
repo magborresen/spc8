@@ -188,43 +188,53 @@ class Simulator:
         self.particle_fig.canvas.draw_idle()
         plt.pause(0.1)
 
-if __name__ == '__main__':
-    region_size = 2000
-    k = 5
-    tx = Transmitter(channels=2, chirps=10)
-    rx = Receiver(channels=10)
+def test_functions(k, tx, rx, radar, target):
+    print('Observations:', k)
+    states = target.generate_states(k, method="random")
 
-    radar = Radar(tx, rx, "tdm", region_size)
-    t_obs_tot = radar.t_obs + radar.k_space
-    target = Target(t_obs_tot)
-    
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
+    sim.states = states
     states_naive = []
     t0 = time.time()
     for i in range(k):
         states_naive.append(sim.target_estimate(i))
     t1 = time.time()
+    print('\nNaive:', t1-t0, 's')
+    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive)-np.array(sim.states)))))
 
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
+    sim.states = states
     states_vector = []
     t0 = time.time()
     for i in range(k):
         states_vector.append(sim.target_estimate_vectorized(i))
     t1 = time.time()
+    print('\nVectorized:', t1-t0, 's')
+    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector)-np.array(sim.states)))))
 
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
+    sim.states = states
     t0 = time.time()
     states_multi = sim.target_estimate_multiprocessing(k)
     t1 = time.time()
-    
-    print('Naive:', t1-t0, 's', 'len', len(states_naive))
-    print('Vectorized:', t1-t0, 's', 'len', len(states_vector))
-    print('Multiprocessing:', t1-t0, 's', 'len', len(states_multi))
-    
-    print(states_naive)
-    print(states_vector)
-    print(states_multi)
-    # plt.waitforbuttonpress()
+    print('\nMultiprocessing:', t1-t0, 's')
+    print('RMSE =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi)-np.array(sim.states)))))
+
+if __name__ == '__main__':
+    region_size = 2000
+    k = 5
+    tx = Transmitter(channels=2, chirps=10)
+    rx = Receiver(channels=10)
+    radar = Radar(tx, rx, "tdm", region_size)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+
+    # test_functions(k, tx, rx, radar, target)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    sim = Simulator(k, radar, target, pf, animate_pf=True)
+    for i in range(k):
+        sim.target_estimate_vectorized(i)
+    plt.waitforbuttonpress()
