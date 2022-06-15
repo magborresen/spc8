@@ -612,7 +612,7 @@ class Radar:
                                                 self.transmitter.t_chirp)
 
         if add_noise:
-            rx_sig2, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
+            # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
             rx_sig, self.receiver.sigma_noise = self.add_awgn_vector(rx_sig, alpha)
 
         # Mix signals

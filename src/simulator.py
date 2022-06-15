@@ -5,7 +5,8 @@ from receiver import Receiver
 from transmitter import Transmitter
 from particle_filter import ParticleFilter
 from target import Target
-
+from multiprocessing import Pool
+import time
 
 class Simulator:
     """
@@ -88,8 +89,11 @@ class Simulator:
             self.particle_ax.set_title(f"{self.particle_filter.n_particles} Particles; Observation {k_obs}")
 
         self.particle_filter.save_theta_hist()
+        
+        # print(k_obs, self.particle_filter.get_estimated_state())
+        return self.particle_filter.get_estimated_state()
 
-    #@profile
+    # @profile
     def target_estimate_vectorized(self, k_obs):
         """
             Estimate the target parameters for the k'th observation (vectorized)
@@ -127,6 +131,18 @@ class Simulator:
             self.particle_ax.set_title(f"{self.particle_filter.n_particles} particles; Observation {k_obs}")
 
         self.particle_filter.save_theta_hist()
+        
+        # print(k_obs, self.particle_filter.get_estimated_state())
+        return self.particle_filter.get_estimated_state()
+
+    def target_estimate_multiprocessing(self, k_obs_tot):
+        
+        with Pool(processes=8) as pool:
+            result = pool.map_async(self.target_estimate_vectorized, np.arange(k_obs_tot))
+            pool.close()
+            pool.join()
+            output = result.get()
+        return output
 
     def setup_particle_animation(self):
         """
@@ -174,16 +190,37 @@ class Simulator:
 
 if __name__ == '__main__':
     region_size = 2000
-    k = 1
+    k = 5
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=10)
 
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
+    
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
-
     sim = Simulator(k, radar, target, pf, animate_pf=False)
+    states_naive = []
+    t0 = time.time()
     for i in range(k):
-        sim.target_estimate_vectorized(i)
-    #plt.waitforbuttonpress()
+        states_naive.append(sim.target_estimate(i))
+    t1 = time.time()
+
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
+    states_vector = []
+    t0 = time.time()
+    for i in range(k):
+        states_vector.append(sim.target_estimate_vectorized(i))
+    t1 = time.time()
+
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
+    t0 = time.time()
+    states_multi = sim.target_estimate_multiprocessing(k)
+    t1 = time.time()
+    
+    print('Naive:', t1-t0, 's', 'len', len(states_naive))
+    print('Vectorized:', t1-t0, 's', 'len', len(states_vector))
+    print('Multiprocessing:', t1-t0, 's', 'len', len(states_multi))
+    # plt.waitforbuttonpress()
