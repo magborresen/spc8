@@ -490,7 +490,7 @@ class Radar:
                 range_n += sig_range[np.argmax(sig_fft)]
             range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
             range_cube.append(fft_vec)
-            
+
         print('range_fft_cube', np.mean(range_est))
         return np.array(range_cube), np.array(range_est)
 
@@ -507,9 +507,10 @@ class Radar:
                 mix_vec (np.ndarray): Collection of mixed signals
 
             Returns:
-                range_cube (np.ndarray): Three-dimensional range cube
+                fft_vec (np.ndarray): Three-dimensional matrix of FFT's
+                range_vec_est (np.ndarray): Vector of range estimate to each antenna
         """
-        print(self.samples_per_obs, mix_vec.shape)
+
         # Prepare low-pass filter for mixed signals
         nyq = self.receiver.f_sample * self.oversample
         sos = butter(10, nyq/2-1, fs=nyq, btype='low', analog=False, output='sos')
@@ -523,15 +524,20 @@ class Radar:
         sig_range = (freq * self.light_speed /
                     (2 * self.transmitter.bandwidth/self.transmitter.t_chirp))
 
-        # Apply butter filter to the mixed signals
-        sig_fil = sosfilt(sos, mix_vec, axis=1)
-        # Get range-FFT of mixed signal
-        sig_fft = np.fft.fft(sig_fil, axis=1)
-        print(sig_fft.shape)
-        # Convert frequency to range
-        range_avg = np.mean([sig_range[np.argmax(sig_fft[idx])] for idx, _ in enumerate(sig_fft)])
-        print('range_fft_cube_new', range_avg)
-        return sig_fft, range_avg
+        fft_vec = np.array([])
+        range_est_vec = np.array([])
+        for sig in mix_vec:
+            # Apply butter filter to the mixed signals
+            sig_fil = sosfilt(sos, sig, axis=1)
+            # Get range-FFT of mixed signal
+            sig_fft = np.fft.fft(sig_fil, axis=1)
+            np.append(fft_vec, sig_fft)
+            # Convert frequency to range
+            range_avg = np.mean([sig_range[np.argmax(sig_fft[idx])] for idx, _ in enumerate(sig_fft)])
+            np.append(range_est_vec, range_avg)
+            print('range_fft_cube_new', range_avg)
+
+        return fft_vec, range_est_vec
 
     def velocity_fft_cube(self, range_cube):
         """
@@ -615,7 +621,6 @@ class Radar:
         # Range-FFT
         _, range_est = self.range_fft_cube_new(mix_vec)
         # _, range_est = self.range_fft_cube(mix_vec)
-        print(self.get_true_dist(theta))
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
