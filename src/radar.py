@@ -346,12 +346,8 @@ class Radar:
         # Find the variance of the signal without offsets
         mask = np.abs(signals) > 0
 
-        #%timeit mask = np.abs(signals) > 0
-        #%timeit sig_var = np.var(np.ma.masked_values(signals, 0.+0.j), axis=1, dtype=np.complex128)
+        sig_var = np.var(signals, axis=1)
 
-        # print(signals[mask])
-        sig_var = np.var(np.ma.masked_values(signals, 0.+0.j), axis=1, dtype=np.complex128)
-        print('sig_var:', sig_var.shape)
         # Determine spectral height of noise
         t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
         fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
@@ -367,9 +363,9 @@ class Radar:
         # Calculate the noise
         noise = np.sqrt(n_var / 2)[:,np.newaxis] * (np.random.normal(size=(signals.shape)) +
                                     1j*np.random.normal(size=(signals.shape)))
+
         sig_noise[mask] = signals[mask] + noise[mask]
-        print('add_awgn_vector:', sig_noise.shape, '=', signals.shape, '+', noise.shape)
-        # print(sig_noise)
+
         return sig_noise, np.var(noise)
 
 
@@ -542,7 +538,6 @@ class Radar:
             # Convert frequency to range
             range_avg = np.mean([sig_range[np.argmax(sig_fft[idx])] for idx, _ in enumerate(sig_fft)])
             np.append(range_est_vec, range_avg)
-            print('range_fft_cube_new', range_avg)
 
         return fft_vec, range_est_vec
 
@@ -579,9 +574,7 @@ class Radar:
         plt.gca().set_aspect('equal')
 
     # @profile
-    def observation(self, k_obs, theta, alpha=None, add_noise=False,
-                    plot_tx=False, plot_rx=False, plot_tau=False, plot_mixed=False,
-                    plot_range_fft=False):
+    def observation(self, k_obs, theta, alpha=None, add_noise=False):
         """
             Create a time vector for a specific observation, generate the Tx
             signal and make the observation.
@@ -626,14 +619,8 @@ class Radar:
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
 
         # Range-FFT
-<<<<<<< HEAD
         _, range_est = self.range_fft_cube_new(mix_vec)
         # _, range_est = self.range_fft_cube(mix_vec)
-=======
-        # _, range_est = self.range_fft_cube_new(mix_vec)
-        _, range_est = self.range_fft_cube(mix_vec)
-        print(self.get_true_dist(theta))
->>>>>>> 3fe6cd05232f09e97c0ffa26171158b022900279
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
