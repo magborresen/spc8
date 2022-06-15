@@ -323,10 +323,9 @@ class Radar:
             # Calculate the noise
             noise = np.sqrt(n_var / 2) * (np.random.normal(size=(sig_only.shape)) +
                                         1j*np.random.normal(size=(sig_only.shape)))
-
             sig_noise[sig_idx] = signal[sig_idx] + noise
             signals_noise.append(sig_noise)
-
+        print('add_awgn:', np.array(sig_noise).shape, '=', np.array(signal[sig_idx]).shape, '+', np.array(noise).shape)
         return np.array(signals_noise), np.var(noise)
 
     # @profile
@@ -343,9 +342,16 @@ class Radar:
                 noise (float): Variance of the noise
         """
 
+        sig_noise = np.zeros(signals.shape)  
         # Find the variance of the signal without offsets
+        mask = np.abs(signals) > 0
+        
+        %timeit mask = np.abs(signals) > 0
+        %timeit sig_var = np.var(np.ma.masked_values(signals, 0.+0.j), axis=1, dtype=np.complex128)
+        
+        # print(signals[mask])
         sig_var = np.var(np.ma.masked_values(signals, 0.+0.j), axis=1, dtype=np.complex128)
-
+        print('sig_var:', sig_var.shape)
         # Determine spectral height of noise
         t_sig = self.m_channels * self.transmitter.chirps * self.transmitter.t_chirp
         fraq = t_sig / Boltzman * self.receiver.temp * self.receiver.noise_figure
@@ -357,12 +363,13 @@ class Radar:
 
         # Calculate the variance of the noise
         n_var = sig_var / lin_snr
+        
         # Calculate the noise
         noise = np.sqrt(n_var / 2)[:,np.newaxis] * (np.random.normal(size=(signals.shape)) +
                                     1j*np.random.normal(size=(signals.shape)))
-
-        sig_noise = signals + noise
-
+        sig_noise[mask] = signals[mask] + noise[mask]
+        print('add_awgn_vector:', sig_noise.shape, '=', signals.shape, '+', noise.shape)
+        # print(sig_noise)
         return sig_noise, np.var(noise)
 
 
@@ -491,7 +498,7 @@ class Radar:
             range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
             range_cube.append(fft_vec)
             
-        print('range_fft_cube', np.mean(range_est))
+        print('range_fft_cube', range_est)
         return np.array(range_cube), np.array(range_est)
 
 
@@ -606,15 +613,15 @@ class Radar:
                                                 self.transmitter.t_chirp)
 
         if add_noise:
-            # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
+            rx_sig2, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
             rx_sig, self.receiver.sigma_noise = self.add_awgn_vector(rx_sig, alpha)
 
         # Mix signals
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
 
         # Range-FFT
-        _, range_est = self.range_fft_cube_new(mix_vec)
-        # _, range_est = self.range_fft_cube(mix_vec)
+        # _, range_est = self.range_fft_cube_new(mix_vec)
+        _, range_est = self.range_fft_cube(mix_vec)
         print(self.get_true_dist(theta))
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
