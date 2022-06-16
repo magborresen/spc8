@@ -152,11 +152,11 @@ class Simulator:
                 all_state_est (list): List of all estimated states
         """
         with Pool(processes=P) as pool:
-            result = pool.map_async(self.target_estimate_vectorized, np.arange(k_obs_tot))
+            result = pool.map(self.target_estimate_vectorized, range(k_obs_tot))
             pool.close()
             pool.join()
-            all_state_est = result.get()
-        return all_state_est
+            # all_state_est = result.get()
+        return result
 
     def setup_particle_animation(self):
         """
@@ -228,6 +228,9 @@ def test_functions(k, tx, rx, radar, target):
     print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive[:2])-np.array(sim.states[:2])))))
     print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_naive[2:])-np.array(sim.states[2:])))))
 
+    # for i, x in enumerate(sim.states):
+    #     print(np.array(x)-np.array(states_naive[i]))
+
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
     states_vector = []
@@ -239,6 +242,9 @@ def test_functions(k, tx, rx, radar, target):
     print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector[:2])-np.array(sim.states[:2])))))
     print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_vector[2:])-np.array(sim.states[2:])))))
 
+    # for i, x in enumerate(sim.states):
+    #     print(np.array(x)-np.array(states_vector[i]))
+
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
     t0 = time.time()
@@ -248,9 +254,12 @@ def test_functions(k, tx, rx, radar, target):
     print('RMSE range =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi[:2])-np.array(sim.states[:2])))))
     print('RMSE veloc =', np.sqrt(1/k * np.sum(np.square(np.array(states_multi[2:])-np.array(sim.states[2:])))))
 
+    # for i, x in enumerate(sim.states):
+    #     print(np.array(x)-np.array(states_multi[i]))
+
 if __name__ == '__main__':
     region_size = 2000
-    k = 10
+    k = 25
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=10)
     radar = Radar(tx, rx, "tdm", region_size)
@@ -259,7 +268,7 @@ if __name__ == '__main__':
 
     # test_functions(k, tx, rx, radar, target)
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
-    sim = Simulator(k, radar, target, pf, animate_pf=True)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
     for i in range(k):
         sim.target_estimate_vectorized(i)
-    plt.waitforbuttonpress()
+    # plt.waitforbuttonpress()

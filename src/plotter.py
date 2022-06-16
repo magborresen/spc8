@@ -605,10 +605,22 @@ def plot_multiprocessing_speedup(k, P_list):
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
+    alpha_t = sim.particle_filter.alpha_est 
+    theta_est_t = sim.particle_filter.theta_est
+    theta_est_all_k_t = sim.particle_filter.theta_est_all_k 
+    particle_acc_t = sim.particle_filter.particle_acc
+    weights_t = sim.particle_filter.weights
+    likelihoods_t = sim.particle_filter.likelihoods
     td = []
     for _, P in enumerate(P_list):
-        pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
-        sim = Simulator(k, radar, target, pf, animate_pf=False)
+        sim.particle_filter.alpha_est = alpha_t
+        sim.particle_filter.theta_est = theta_est_t
+        sim.particle_filter.theta_est_all_k = theta_est_all_k_t
+        sim.particle_filter.particle_acc = particle_acc_t
+        sim.particle_filter.weights = weights_t
+        sim.particle_filter.likelihoods = likelihoods_t
         print(P)
         t0 = time.time()
         sim.target_estimate_multiprocessing(k, P)
@@ -622,9 +634,9 @@ def plot_multiprocessing_speedup(k, P_list):
     plt.subplots_adjust(hspace=0.5)
 
     axs[0].plot(P_list, td)
-    axs[0].set_title(f"Execution time vs. Workers")
+    axs[0].set_title(f"Average execution time vs. Workers")
     axs[0].grid()
-    axs[0].set_ylabel('Avgerage time [s]')
+    axs[0].set_ylabel('Time [s]')
     axs[1].plot(P_list, speedup)
     axs[1].set_title(f"Speedup vs. Workers")
     axs[1].grid()
@@ -634,6 +646,75 @@ def plot_multiprocessing_speedup(k, P_list):
     fig.suptitle(f'Particle Filter multi-processing ({k} observations per average)')
     fig.tight_layout()
     plt.savefig('plots/multiprocessing_speedup.pdf', dpi=200)
+
+def plot_compare_multiprocessing(itr, k_list):
+    region_size = 2000
+    tx = Transmitter(channels=2, chirps=10)
+    rx = Receiver(channels=10)
+    radar = Radar(tx, rx, "tdm", region_size)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+ 
+    td_vector = []
+    td_multi = []
+    
+    for i, k in enumerate(k_list):
+        print(f'\nTest {i}/{len(k_list)} for k={k}')
+        pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+        sim = Simulator(k, radar, target, pf, animate_pf=False)
+
+        alpha_t = sim.particle_filter.alpha_est 
+        theta_est_t = sim.particle_filter.theta_est
+        theta_est_all_k_t = sim.particle_filter.theta_est_all_k 
+        particle_acc_t = sim.particle_filter.particle_acc
+        weights_t = sim.particle_filter.weights
+        likelihoods_t = sim.particle_filter.likelihoods
+
+        times = []
+        for idx in range(itr):
+            t0 = time.time()
+            for j in range(k):
+                sim.target_estimate_vectorized(j)
+            t1 = time.time()
+            times.append((t1-t0)/k)
+            print(f'Vector {idx+1}/{itr}:', times[idx])
+        td_vector.append(np.mean(times))
+        print(f'Vector mean: {td_vector[i]}')
+        
+        sim.particle_filter.alpha_est = alpha_t
+        sim.particle_filter.theta_est = theta_est_t
+        sim.particle_filter.theta_est_all_k = theta_est_all_k_t
+        sim.particle_filter.particle_acc = particle_acc_t
+        sim.particle_filter.weights = weights_t
+        sim.particle_filter.likelihoods = likelihoods_t
+        
+        times = []
+        for idx in range(itr):
+            t0 = time.time()
+            sim.target_estimate_multiprocessing(k, 8)
+            t1 = time.time()
+            times.append((t1-t0)/k)
+            print(f'Multi {idx+1}/{itr}:', times[idx])
+        td_multi.append(np.mean(times))
+        print(f'Vector mean: {td_multi[i]}')
+        
+    fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
+    plt.subplots_adjust(hspace=0.5)
+
+    axs.plot(np.arange(len(k_list)), td_vector, label='Vectorized')
+    axs.plot(np.arange(len(k_list)), td_multi, label='Multiprocessing')
+    axs.set_title(f"Average execution time vs. Number of observations")
+    axs.grid()
+    axs.set_ylabel('Time [s]')
+    axs.set_xticks(np.arange(len(k_list)))
+    axs.set_xticklabels(k_list)
+    
+    plt.xlabel("Amount of workers")
+    fig.suptitle(f'Particle Filter multi-processing ({itr} iterations per average)')
+    fig.legend(loc='center right')
+    fig.tight_layout()
+    plt.savefig('plots/multiprocessing_vs_vector.pdf', dpi=200)
+
 
 if __name__ == '__main__':
     #plot_target()
@@ -654,4 +735,5 @@ if __name__ == '__main__':
     #plot_theta_csv()
     
     # Optimization times
-    plot_multiprocessing_speedup(10, np.arange(1, 8+1))
+    # plot_multiprocessing_speedup(k=5, P_list=np.arange(1, 8+1))
+    # plot_compare_multiprocessing(itr=1, k_list=np.array([5, 10]))
