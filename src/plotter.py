@@ -709,12 +709,76 @@ def plot_compare_multiprocessing(itr, k_list):
     axs.set_xticks(np.arange(len(k_list)))
     axs.set_xticklabels(k_list)
     
-    plt.xlabel("Amount of workers")
+    plt.xlabel("Total observations")
     fig.suptitle(f'Particle Filter multi-processing ({itr} iterations per average)')
     fig.legend(loc='center right')
     fig.tight_layout()
     plt.savefig('plots/multiprocessing_vs_vector.pdf', dpi=200)
 
+def plot_implementation_comparison(itr, k):
+    region_size = 2000
+    tx = Transmitter(channels=2, chirps=10)
+    rx = Receiver(channels=10)
+    radar = Radar(tx, rx, "tdm", region_size)
+    t_obs_tot = radar.t_obs + radar.k_space
+    target = Target(t_obs_tot)
+    pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
+    sim = Simulator(k, radar, target, pf, animate_pf=False)
+    alpha_t = sim.particle_filter.alpha_est 
+    theta_est_t = sim.particle_filter.theta_est
+    theta_est_all_k_t = sim.particle_filter.theta_est_all_k 
+    particle_acc_t = sim.particle_filter.particle_acc
+    weights_t = sim.particle_filter.weights
+    likelihoods_t = sim.particle_filter.likelihoods
+    
+    times = []
+    labels = []
+    
+    # Naive (Original before optimization) for k=?, itr=?
+    times.append(2)
+    labels.append('Naive')
+    
+    # Optimized
+    td = []
+    for idx in range(itr):
+        t0 = time.time()
+        for i in range(k):
+            sim.target_estimate(i)
+        t1 = time.time()
+        td.append((t1-t0)/k)
+    times.append(np.mean(td))
+    labels.append('Optimized')
+    
+    # Vectorized
+    td = []
+    for idx in range(itr):
+        t0 = time.time()
+        for i in range(k):
+            sim.target_estimate_vectorized(i)
+        t1 = time.time()
+        td.append((t1-t0)/k)
+    times.append(np.mean(td))
+    labels.append('Vectorized')
+    
+    # Multi-processed
+    td = []
+    for idx in range(itr):
+        t0 = time.time()
+        sim.target_estimate_multiprocessing(k, 8)
+        t1 = time.time()
+        td.append((t1-t0)/k)
+    times.append(np.mean(td))
+    labels.append('Multiprocessing')
+    
+    fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(8, 5), sharex=True)
+    plt.subplots_adjust(hspace=0.5)
+    n = [i+1 for i,v in enumerate(times)]
+    plt.bar(n,times,tick_label = labels)
+    plt.xlabel('Implementation')
+    plt.ylabel('Time [s]')
+    plt.title(f'Average execution time of implementations ({k} observations per average)')
+    for i in range(len(times)):
+        plt.annotate(str(round(times[i],2)), xy=(n[i],times[i]), ha='center', va='bottom')
 
 if __name__ == '__main__':
     #plot_target()
@@ -735,5 +799,8 @@ if __name__ == '__main__':
     #plot_theta_csv()
     
     # Optimization times
-    # plot_multiprocessing_speedup(k=5, P_list=np.arange(1, 8+1))
-    # plot_compare_multiprocessing(itr=1, k_list=np.array([5, 10]))
+    k = 5
+    itr = 1
+    plot_multiprocessing_speedup(k=k, P_list=np.arange(1, 8+1))
+    plot_compare_multiprocessing(itr=itr, k_list=np.array([5, 10]))
+    plot_implementation_comparison(itr=itr, k=k)
