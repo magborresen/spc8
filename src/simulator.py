@@ -57,7 +57,7 @@ class Simulator:
         """
         self.states = self.target.generate_states(self.k_obs_tot, method="random")
 
-    #@profile
+    # @profile
     def target_estimate(self, k_obs, resampling="systemic"):
         """
             Estimate the target parameters for the k'th observation.
@@ -259,16 +259,18 @@ def test_functions(k, tx, rx, radar, target):
 
 if __name__ == '__main__':
     region_size = 2000
-    k = 25
+    k = 10
     tx = Transmitter(channels=2, chirps=10)
     rx = Receiver(channels=10)
     radar = Radar(tx, rx, "tdm", region_size)
     t_obs_tot = radar.t_obs + radar.k_space
     target = Target(t_obs_tot)
-
+  
     # test_functions(k, tx, rx, radar, target)
     pf = ParticleFilter(t_obs_tot, rx.channels, n_particles=10000, region=region_size)
     sim = Simulator(k, radar, target, pf, animate_pf=False)
     for i in range(k):
-        sim.target_estimate_vectorized(i)
+        # sim.target_estimate(i)
+        sim.target_estimate_vector(i)
+    # sim.target_estimate_multiprocessing(k, 8)
     # plt.waitforbuttonpress()

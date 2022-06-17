@@ -645,8 +645,8 @@ def plot_multiprocessing_speedup(k, P_list):
     axs[1].grid()
     axs[1].set_ylabel('Speed up')
     
-    plt.xlabel("Amount of workers")
-    fig.suptitle(f'Particle Filter multi-processing ({k} observations per average)')
+    plt.xlabel("Number of workers")
+    fig.suptitle(f'Particle Filter: Multi-processing vs. Vectorized version\n({k} observations per average)')
     fig.tight_layout()
     plt.savefig('plots/multiprocessing_speedup.pdf', dpi=200)
 
@@ -677,6 +677,23 @@ def plot_compare_multiprocessing(itr, k_list):
         weights_t = sim.particle_filter.weights
         likelihoods_t = sim.particle_filter.likelihoods
 
+        # times = []
+        # for idx in range(itr):
+        #     sim.particle_filter.alpha_est = alpha_t
+        #     sim.particle_filter.theta_est = theta_est_t
+        #     sim.particle_filter.theta_est_all_k = theta_est_all_k_t
+        #     sim.particle_filter.particle_acc = particle_acc_t
+        #     sim.particle_filter.weights = weights_t
+        #     sim.particle_filter.likelihoods = likelihoods_t
+        #     t0 = time.time()
+        #     for j in range(k):
+        #         sim.target_estimate(j)
+        #     t1 = time.time()
+        #     times.append((t1-t0)/k)
+        #     print(f'Naive {idx+1}/{itr}:', times[idx])
+        # td_vector.append(np.mean(times))
+        # print(f'Naive mean: {td_vector[i]}')
+
         times = []
         for idx in range(itr):
             sim.particle_filter.alpha_est = alpha_t
@@ -693,8 +710,6 @@ def plot_compare_multiprocessing(itr, k_list):
             print(f'Vector {idx+1}/{itr}:', times[idx])
         td_vector.append(np.mean(times))
         print(f'Vector mean: {td_vector[i]}')
-        
-        
         
         times = []
         for idx in range(itr):
@@ -717,14 +732,14 @@ def plot_compare_multiprocessing(itr, k_list):
 
     axs.plot(np.arange(len(k_list)), td_vector, label='Vectorized')
     axs.plot(np.arange(len(k_list)), td_multi, label='Multiprocessing')
-    axs.set_title(f"Average execution time vs. Number of observations")
     axs.grid()
     axs.set_ylabel('Time [s]')
     axs.set_xticks(np.arange(len(k_list)))
     axs.set_xticklabels(k_list)
     
     plt.xlabel("Total observations")
-    fig.suptitle(f'Particle Filter multi-processing ({itr} iterations per average)')
+    fig.suptitle(f'Particle Filter: Multi-processing speed-up test\n({itr} iterations per average)')
+    # fig.suptitle(f'Particle Filter: Baseline test\n({itr} iterations per average)')
     fig.legend(loc='center right')
     fig.tight_layout()
     plt.savefig('plots/multiprocessing_vs_vector.pdf', dpi=200)
@@ -872,9 +887,9 @@ if __name__ == '__main__':
     #plot_theta_csv()
     
     # Optimization times
-    # k = 100
-    # itr = 3
+    k = 100
+    itr = 3
     # plot_multiprocessing_speedup(k=k, P_list=np.arange(1, 8+1))
-    # plot_compare_multiprocessing(itr=itr, k_list=np.array([5, 10, 20, 50, 100, 200]))
+    plot_compare_multiprocessing(itr=itr, k_list=np.array([5, 10, 20, 50, 100]))
     # # test_naive(k, itr) # This was used to measure before optimization
     # plot_implementation_comparison(itr=itr, k=k)

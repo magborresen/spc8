@@ -137,7 +137,7 @@ class ParticleFilter():
         self.theta_est[particle][2:] = (self.theta_est[particle][2:] +
                                         self._t_obs * self.particle_acc[particle])
 
-        self.validate_state(particle)
+        # self.validate_state(particle)
 
     def predict_particle_vectorized(self):
         """

@@ -325,7 +325,7 @@ class Radar:
                                         1j*np.random.normal(size=(sig_only.shape)))
             sig_noise[sig_idx] = signal[sig_idx] + noise
             signals_noise.append(sig_noise)
-        print('add_awgn:', np.array(sig_noise).shape, '=', np.array(signal[sig_idx]).shape, '+', np.array(noise).shape)
+        # print('add_awgn:', np.array(sig_noise).shape, '=', np.array(signal[sig_idx]).shape, '+', np.array(noise).shape)
         return np.array(signals_noise), np.var(noise)
 
     # @profile
@@ -494,7 +494,7 @@ class Radar:
             range_est.append(range_n / (self.m_channels * self.transmitter.chirps))
             range_cube.append(fft_vec)
 
-        print('range_fft_cube', np.mean(range_est))
+        # print('range_fft_cube', np.mean(range_est))
         return np.array(range_cube), np.array(range_est)
 
 
@@ -595,6 +595,11 @@ class Radar:
         # Find the time delay between the tx -> target -> rx
         # tau_vec = self.time_delay(theta, self.t_vec)
         tau_vec = self.time_delay_optimized(theta, self.t_vec)
+        
+        # print('\nOriginal (time_delay)')
+        # %timeit self.time_delay(theta, self.t_vec)
+        # print('Optimized (time_delay_optimized)')
+        # %timeit self.time_delay_optimized(theta, self.t_vec)
 
         # Find the originally transmitted signal (starting at t = 0)
         tx_sig = self.transmitter.tx_tdm(self.t_vec)
@@ -611,10 +616,20 @@ class Radar:
                                                 alpha, self.t_vec,
                                                 self.transmitter.t_chirp)
 
+        # print('\nOriginal (rx_tdm)')
+        # %timeit self.receiver.rx_tdm(tau_vec, tx_sig, self.transmitter.f_carrier, alpha, self.t_vec, self.transmitter.t_chirp)
+        # print('Optimized (rx_tdm_optimized)')
+        # %timeit self.receiver.rx_tdm_optimized(tau_vec, tx_sig, self.transmitter.f_carrier, alpha, self.t_vec, self.transmitter.t_chirp)
+
         if add_noise:
             # rx_sig, self.receiver.sigma_noise = self.add_awgn(rx_sig, alpha)
             rx_sig, self.receiver.sigma_noise = self.add_awgn_vector(rx_sig, alpha)
 
+        # print('\nOriginal: (add_awgn)')
+        # %timeit self.add_awgn(rx_sig, alpha)
+        # print('Optimized (add_awgn_vector)')
+        # %timeit self.add_awgn_vector(rx_sig, alpha)
+        
         # Mix signals
         mix_vec = self.signal_mixer(rx_sig, tx_sig)
 
@@ -624,6 +639,11 @@ class Radar:
         # range_true, vel_true = self.get_true_dist(theta)
         # self.velocity_fft_cube(range_cube)
         # self.print_estimates(range_true, range_est, vel_true, np.zeros(self.n_channels))
+        
+        # print('\nOriginal: (range_fft_cube)')
+        # %timeit self.range_fft_cube(mix_vec)
+        # print('Optimized:: (range_fft_cube_new)')
+        # %timeit self.range_fft_cube_new(mix_vec)
 
         return range_est, alpha
 
